@@ -2,6 +2,7 @@ from graphviz import Digraph
 
 dot = Digraph(comment='The JSMC Production Process')
 
+# Main Process Nodes
 dot.node('A', 'Pre-Production')
 dot.node('B', 'Initial Preparation')
 dot.node('C', 'Fabrication')
@@ -11,27 +12,26 @@ dot.node('F', 'Final Delivery')
 
 dot.edges(['AB', 'BC', 'CD', 'DE', 'EF'])
 
-# For Initial Preparation
+# Sub-nodes for Initial Preparation
 dot.node('BA', 'Shot Blasting')
 dot.node('BB', 'Painting and De-Masking')
-dot.edges(['BA', 'BB'])  # Corrected this line
+dot.edges(['BBA', 'ABB'])  # Connect sub-nodes to main node B
 
-# For Fabrication
+# Sub-nodes for Fabrication
 dot.node('CA', 'Cutting Operations')
 dot.node('CB', 'Welding Operations')
-dot.edges(['CA', 'CB'])  # And this line
+dot.edges(['CCA', 'BCC'])  # Connect sub-nodes to main node C
 
-# For Assembly Line
+# Sub-nodes for Assembly Line
 dot.node('DA', 'Hull Assembly')
 dot.node('DB', 'Turret Assembly')
 dot.node('DC', 'Final Assembly')
-dot.edges(['DA', 'DB', 'DC'])  # And this line
+dot.edges(['DDA', 'CDD', 'DDB', 'DDC'])  # Connect sub-nodes to main node D
 
-# For Testing Phase
+# Sub-nodes for Testing Phase
 dot.node('EA', 'QA & Inspection')
 dot.node('EB', 'Road Testing')
 dot.node('EC', 'Final Acceptance Testing')
-dot.edges(['EA', 'EB', 'EC'])  # And this line
+dot.edges(['EEA', 'DEE', 'EEB', 'EEC'])  # Connect sub-nodes to main node E
 
 dot.render('jsmc_process.gv', view=True)  # Output: jsmc_process.gv.pdf
-
