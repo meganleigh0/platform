@@ -1,40 +1,87 @@
-from graphviz import Digraph
+digraph G {
+    graph [rankdir=TB, size="10,10"]
 
-dot = Digraph(comment='The JSMC Production Process', format='png')
-dot.attr(rankdir='TB', size='10,10')
+    // Pre-production and Initial Preparation
+    "Pre-Production" [shape=ellipse, fillcolor=lightyellow, style=filled];
+    "Initial Preparation" [shape=ellipse, fillcolor=lightpink, style=filled];
+    "Hull & Turret Divorce" [shape=box, label="Hull & Turret Divorce\n- Separation of Hull & Turret"];
+    
+    "Pre-Production" -> "Initial Preparation";
+    "Initial Preparation" -> "Hull & Turret Divorce";
 
-# Main Process Nodes with different shapes and colors
-dot.node('A', 'Pre-Production', shape='ellipse', color='black', style='filled', fillcolor='lightyellow')
-dot.node('B', 'Initial Preparation', shape='box', color='black', style='filled', fillcolor='lightpink')
-dot.node('C', 'Fabrication', shape='box', color='black', style='filled', fillcolor='lightcyan')
-dot.node('D', 'Assembly Line', shape='box', color='black', style='filled', fillcolor='lightcoral')
-dot.node('E', 'Testing Phase', shape='ellipse', color='black', style='filled', fillcolor='lightgreen')
-dot.node('F', 'Final Delivery', shape='ellipse', color='black', style='filled', fillcolor='lightgray')
+    subgraph cluster_0 {
+        label = "Plant 1: Initial Operations & Fabrication";
+        color = lightgrey;
+        
+        // Hull Operations in Plant 1
+        "Hull Tear Down" [shape=box, label="Hull Tear Down\n- Divorce of Hull from Turret"];
+        "Hull Appurtenance" [shape=box, label="Hull Appurtenance\n- Prepping Hull for Assembly Line"];
+        "Hull Paint" [shape=box, label="Hull Shot Blast Painting\n- Rust removal from Hull"];
+        
+        "Hull & Turret Divorce" -> "Hull Tear Down";
+        "Hull Tear Down" -> "Hull Appurtenance";
+        "Hull Appurtenance" -> "Hull Paint";
 
-dot.edges(['AB', 'BC', 'CD', 'DE', 'EF'])
+        // Turret Operations in Plant 1
+        "Remove Turr Rails and Appurt" [shape=box, label="Remove Turret Rails & Appurtenances\n- Preparation for Modifications"];
+        "Turr Machine" [shape=box, label="Turret Machining\n- Prepping Turret for Armor Attachment"];
+        "Turr Armor" [shape=box, label="Turret Armor Attachment\n- Adding Protective Armor"];
+        "Turr Appurt" [shape=box, label="Turret Appurtenances Attachment\n- Adding necessary components"];
+        "Turr Paint" [shape=box, label="Turret Shot Blast Painting\n- Rust removal from Turret"];
+        
+        "Hull & Turret Divorce" -> "Remove Turr Rails and Appurt";
+        "Remove Turr Rails and Appurt" -> "Turr Machine";
+        "Turr Machine" -> "Turr Armor";
+        "Turr Armor" -> "Turr Appurt";
+        "Turr Appurt" -> "Turr Paint";
 
-# Initial Preparation Sub-Nodes
-dot.node('BA', 'Shot Blasting\n- Rust removal from hulls & turrets', shape='parallelogram', color='black')
-dot.node('BB', 'Painting & De-Masking', shape='parallelogram', color='black')
-dot.edges([('B', 'BA'), ('B', 'BB')])
+        // Fabrication in Plant 1
+        "Fabrication" [shape=ellipse, fillcolor=lightcyan, style=filled];
+        "Cutting Operations" [shape=box, label="Cutting Operations\n- Laser, plasma, water jet cutting\n- Titanium alloy sheet cutting"];
+        "Welding Operations" [shape=box, label="Welding Operations\n- Robotic & friction stir welding\n- Vehicle component fabrication"];
+        
+        "Initial Preparation" -> "Fabrication";
+        "Fabrication" -> "Cutting Operations";
+        "Fabrication" -> "Welding Operations";
+    }
 
-# Fabrication Sub-Nodes
-dot.node('CA', 'Cutting Operations\n- Laser, plasma, water jet cutting\n- Titanium alloy sheet cutting', shape='rectangle', color='black')
-dot.node('CB', 'Welding Operations\n- Robotic & friction stir welding\n- Vehicle component fabrication', shape='rectangle', color='black')
-dot.edges([('C', 'CA'), ('C', 'CB')])
+    subgraph cluster_1 {
+        label = "Plant 3: Assembly Line";
+        color = lightgrey;
+        
+        // Hull Assembly Line
+        "Hull Assembly Line" [shape=box, fillcolor=lightcyan];
+        "Hull Paint" -> "Hull Assembly Line";
+        
+        // Turret Assembly Line
+        "Turr Assembly Line" [shape=box, fillcolor=lightcyan];
+        "Turr Paint" -> "Turr Assembly Line";
+        
+        // Marriage & Final Assembly
+        "Marriage & Final Assembly" [shape=ellipse, fillcolor=lightcoral, style=filled];
+        "Hull Assembly Line" -> "Marriage & Final Assembly";
+        "Turr Assembly Line" -> "Marriage & Final Assembly";
+        "Fabrication" -> "Marriage & Final Assembly"; // Adding this line
+    }
 
-# Assembly Line Sub-Nodes
-dot.node('DA', 'Hull Assembly\n- Internal equipment & systems installation\n- Suspension components installation', shape='rectangle', color='black')
-dot.node('DB', 'Turret Assembly\n- Cannon mounting & recoil testing\n- Ammo doors & component addition', shape='rectangle', color='black')
-dot.edges([('D', 'DA'), ('D', 'DB')])
-dot.node('DC', 'Final Assembly\n- Turret & hull marriage\n- Armor, skirting, final adjustments', shape='rectangle', color='black')
-dot.edges([('DA', 'DC'), ('DB', 'DC')])
-
-# Testing Phase Sub-Nodes
-dot.node('EA', 'QA & Inspection\n- Multiple component inspections\n- Fire control systems calibration', shape='rectangle', color='black', style='filled', fillcolor='white')
-dot.node('EB', 'Road Testing\n- Evaluation track road tests\n- Performance & tolerance tests', shape='rectangle', color='black', style='filled', fillcolor='white')
-dot.node('EC', 'Final Acceptance Testing\n- GDLS & DCMA inspection\n- 1,200 item inspection process', shape='rectangle', color='black', style='filled', fillcolor='white')
-dot.edges([('E', 'EA'), ('E', 'EB'), ('E', 'EC')])
-
-# Render the Graph
-dot.render('jsmc_process', view=True)
+    subgraph cluster_2 {
+        label = "Vehicle: Testing to Delivery";
+        color = lightgrey;
+        
+        "Testing Phase" [shape=ellipse, fillcolor=lightgreen, style=filled];
+        "Marriage & Final Assembly" -> "Testing Phase";
+        
+        // Testing Phase Sub-Nodes
+        "QA & Inspection" [shape=box, label="QA & Inspection\n- Component Inspections\n- Fire Control System Calibration"];
+        "Road Testing" [shape=box, label="Road Testing\n- Performance & Tolerance Tests"];
+        "Final Acceptance Testing" [shape=box, label="Final Acceptance Testing\n- Over 1,200 Item Inspection"];
+        "Testing Phase" -> "QA & Inspection";
+        "Testing Phase" -> "Road Testing";
+        "Testing Phase" -> "Final Acceptance Testing";
+        
+        "Final Delivery" [shape=ellipse, fillcolor=lightgray, style=filled];
+        "QA & Inspection" -> "Final Delivery";
+        "Road Testing" -> "Final Delivery";
+        "Final Acceptance Testing" -> "Final Delivery";
+    }
+}
