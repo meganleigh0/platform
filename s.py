@@ -1,33 +1,9 @@
-import plotly.graph_objects as go
+# Filtering starting and ending points
+start_df = df[df['Interaction'].str.contains('Starting')].rename(columns={'Timestamp': 'Start_Time'})
+end_df = df[df['Interaction'].str.contains('finish')].rename(columns={'Timestamp': 'End_Time'})
 
-def visualize_connections(df):
-    fig = go.Figure()
+# Merging the dataframes on AssemblyID to get start and end times in the same row
+merged_df = pd.merge(start_df, end_df, on=['AssemblyID', 'Vehicle', 'Section'], how='left')
+fig = px.line(merged_df, x='Start_Time', x_end='End_Time', y='AssemblyID', y_end='AssemblyID', color='Vehicle', facet_col='Section', title="Assembly over time")
 
-    assemblies = df['AssemblyID'].unique()
-    for assembly in assemblies:
-        subset_df = df[df['AssemblyID'] == assembly]
-        start_row = subset_df[subset_df['Interaction'] == 'Start']
-        complete_row = subset_df[subset_df['Interaction'] == 'Complete']
-
-        if not start_row.empty and not complete_row.empty:
-            fig.add_trace(go.Scatter(
-                x=[start_row['Timestamp'].values[0], complete_row['Timestamp'].values[0]],
-                y=[start_row['AssemblyID'].values[0], complete_row['AssemblyID'].values[0]],
-                mode='lines+markers',
-                name=f"Assembly {assembly}"
-            ))
-
-    fig.update_layout(title="Connections between Start and Complete of Assemblies",
-                      xaxis_title="Timestamp",
-                      yaxis_title="AssemblyID")
-
-    fig.show()
-
-# Sample data
-df = pd.DataFrame({
-    'Timestamp': ['2023-01-01', '2023-01-02', '2023-01-03', '2023-01-04'],
-    'Interaction': ['Start', 'Complete', 'Start', 'Complete'],
-    'AssemblyID': [1, 1, 2, 2]
-})
-
-visualize_connections(df)
+fig.show()
