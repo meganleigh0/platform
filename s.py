@@ -1,9 +1,20 @@
-# Filtering starting and ending points
-start_df = df[df['Interaction'].str.contains('Starting')].rename(columns={'Timestamp': 'Start_Time'})
-end_df = df[df['Interaction'].str.contains('finish')].rename(columns={'Timestamp': 'End_Time'})
+import plotly.graph_objects as go
 
-# Merging the dataframes on AssemblyID to get start and end times in the same row
-merged_df = pd.merge(start_df, end_df, on=['AssemblyID', 'Vehicle', 'Section'], how='left')
-fig = px.line(merged_df, x='Start_Time', x_end='End_Time', y='AssemblyID', y_end='AssemblyID', color='Vehicle', facet_col='Section', title="Assembly over time")
+# Create an empty figure
+fig = go.Figure()
 
+# Iterate through the merged_df to plot each line segment
+for i, row in merged_df.iterrows():
+    fig.add_trace(go.Scatter(x=[row['Start_Time'], row['End_Time']],
+                             y=[row['AssemblyID'], row['AssemblyID']],
+                             mode='lines',
+                             line=dict(color=f'rgba({255*(1-row["Vehicle"])},0,{255*row["Vehicle"]},0.5)'),  # Just a simple way to color by vehicle
+                             name=f"Vehicle {row['Vehicle']}"))
+
+# Updating the layout to add a title and labels
+fig.update_layout(title='Assembly over time',
+                  xaxis_title='Time',
+                  yaxis_title='Assembly ID')
+
+# Show the plot
 fig.show()
