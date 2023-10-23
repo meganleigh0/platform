@@ -1,20 +1,15 @@
-import plotly.graph_objects as go
+import pandas as pd
+import plotly.express as px
 
-# Create an empty figure
-fig = go.Figure()
 
-# Iterate through the merged_df to plot each line segment
-for i, row in merged_df.iterrows():
-    fig.add_trace(go.Scatter(x=[row['Start_Time'], row['End_Time']],
-                             y=[row['AssemblyID'], row['AssemblyID']],
-                             mode='lines',
-                             line=dict(color=f'rgba({255*(1-row["Vehicle"])},0,{255*row["Vehicle"]},0.5)'),  # Just a simple way to color by vehicle
-                             name=f"Vehicle {row['Vehicle']}"))
+# Create the line plot
+fig = px.line(df, x='Time', y='ID', color='Vehicle', 
+              line_shape='linear', title='Assembly Interactions over Time')
 
-# Updating the layout to add a title and labels
-fig.update_layout(title='Assembly over time',
-                  xaxis_title='Time',
-                  yaxis_title='Assembly ID')
+# Add scatter points on top of the lines
+scatter = px.scatter(df, x='Time', y='ID', color='Vehicle')
+for trace in scatter.data:
+    fig.add_trace(trace)
 
-# Show the plot
+# Show the figure
 fig.show()
