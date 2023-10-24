@@ -1,39 +1,36 @@
-class Assembly:
-    def __init__(self, name):
-        self.name = name
-        self.children = []
-        self.operations = []
+from enum import Enum
 
-    def add_child(self, child):
-        self.children.append(child)
+class Status(Enum):
+    NOT_STARTED = 1
+    IN_PROCESS = 2
+    COMPLETED = 3
 
-    def add_operation(self, operation):
-        self.operations.append(operation)
+class Assembly(Part):
+    def __init__(self, ...):  # Existing initialization
+        ...
+        self.status = Status.NOT_STARTED
 
     def process(self):
-        # Check and process only unprocessed children
+        # If the assembly is completed or in process, return
+        if self.status == Status.COMPLETED or self.status == Status.IN_PROCESS:
+            return
+        
+        # Mark the assembly as in process
+        self.status = Status.IN_PROCESS
+        print(f"Attempting to Process Assembly: {self.name}")
+
+        # Recursively process children assemblies first
         for child in self.children:
-            if isinstance(child, Assembly):
-                while not child.check_readiness():
-                    print(f"Processing Assembly: {child.name}")
-                    child.process()
-                    print(f"Assembly {child.name} readiness after processing: {child.check_readiness()}")
+            if isinstance(child, Assembly) and child.status != Status.COMPLETED:
+                child.process()
             elif isinstance(child, Part) and not child.is_ready:
                 child.process()
 
-        # After processing required children, process the operations of this assembly
-        for operation in self.operations:
-            operation.is_completed = True
-
-    def check_readiness(self):
-        # Check if all operations of this assembly are completed
-        if not all([op.is_completed for op in self.operations]):
-            return False
-        # Check the readiness of children
-        for child in self.children:
-            if isinstance(child, Assembly) and not child.check_readiness():
-                print(f"Assembly {self.name} process child {child.name}")
-                return False
-            elif isinstance(child, Part) and not child.is_ready:
-                return False
-        return True
+        # Now, process the operations for this assembly
+        if self.check_readiness():
+            for operation in self.operations:
+                operation.process()
+            print(f"Processing operations for Assembly: {self.name}")
+            
+        # Mark the assembly as completed
+        self.status = Status.COMPLETED
