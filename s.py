@@ -1,27 +1,31 @@
-# Separate start and end interactions
-start_df = df[df['Interaction'] == 'start']
-end_df = df[df['Interaction'] == 'end']
-
-# Merge on AssemblyID, Station, and Vehicle
-merged_df = pd.merge(start_df, end_df, on=['AssemblyID', 'Station', 'Vehicle'], suffixes=('_start', '_end'))
-
-# Extract necessary columns
-final_df = merged_df[['AssemblyID', 'Station', 'Timestamp_start', 'Timestamp_end', 'Vehicle']]
 import plotly.graph_objects as go
+import numpy as np
+
+# Using the previously processed 'final_df'
+
+# Create a unique color list for vehicles
+color_list = ['#'+ ''.join([np.random.choice(list('0123456789ABCDEF')) for j in range(6)]) for i in range(len(final_df['Vehicle'].unique()))]
+color_dict = dict(zip(final_df['Vehicle'].unique(), color_list))
 
 fig = go.Figure()
 
 # Add a trace for each vehicle
-for vehicle in final_df['Vehicle'].unique():
-    vehicle_df = final_df[final_df['Vehicle'] == vehicle]
+for vehicle, color in color_dict.items():
+    vehicle_df = final_df[final_df['Vehicle'] == vehicle].sort_values(by=['Timestamp_start'])
+
+    x_values = []
+    y_values = []
     for _, row in vehicle_df.iterrows():
-        fig.add_trace(go.Scatter(
-            x=[row['Timestamp_start'], row['Timestamp_end']],
-            y=[row['Station'], row['Station']],
-            mode='lines',
-            name=f'Vehicle {vehicle}',
-            line=dict(width=10)
-        ))
+        x_values.extend([row['Timestamp_start'], row['Timestamp_end'], None])  # 'None' creates a gap
+        y_values.extend([row['Station'], row['Station'], None])  # 'None' creates a gap
+
+    fig.add_trace(go.Scatter(
+        x=x_values,
+        y=y_values,
+        mode='lines',
+        name=f'Vehicle {vehicle}',
+        line=dict(width=10, color=color)
+    ))
 
 fig.update_layout(
     title='Assembly Interactions by Vehicle and Station',
