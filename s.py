@@ -1,112 +1,84 @@
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 
-# Assuming 'final_df' is your dataframe and it's already sorted by 'Timestamp_start'
+# Assuming final_df is your dataframe with the columns: 'AssemblyID', 'Station', 'Vehicle', 'Timestamp_start', and 'Timestamp_end'
 
-# Initialize subplots
-fig = make_subplots(rows=3, cols=1, subplot_titles=('View by Vehicle', 'View by Station', 'View by Assembly'))
+# Create the figure
+fig = go.Figure()
 
-# Add traces for each vehicle
-for vehicle in final_df['Vehicle'].unique():
-    df_vehicle = final_df[final_df['Vehicle'] == vehicle]
+# Get unique identifiers for dropdown options
+stations = final_df['Station'].unique()
+vehicles = final_df['Vehicle'].unique()
+assemblies = final_df['AssemblyID'].unique()
+
+# Add all bars initially
+for i, row in final_df.iterrows():
     fig.add_trace(
         go.Scatter(
-            x=df_vehicle['Timestamp_start'], 
-            y=df_vehicle['Station'],
+            x=[row['Timestamp_start'], row['Timestamp_end']],
+            y=[row['Station'], row['Station']],
             mode='lines',
-            name=f'Vehicle {vehicle}'
-        ), row=1, col=1
+            name=f'Vehicle {row["Vehicle"]}',
+            line=dict(color=f'rgba({row["Vehicle"]*12}, {100 + row["Vehicle"]*5}, {150 + row["Vehicle"]*5}, 0.8)'),
+            legendgroup=f'Vehicle {row["Vehicle"]}',
+            showlegend=i==0, # show legend only for the first line of each vehicle
+            hoverinfo='text',
+            text=f'Vehicle: {row["Vehicle"]}<br>AssemblyID: {row["AssemblyID"]}<br>Time Start: {row["Timestamp_start"]}<br>Time End: {row["Timestamp_end"]}'
+        )
     )
 
-# Add traces for each station
-for station in final_df['Station'].unique():
-    df_station = final_df[final_df['Station'] == station]
-    fig.add_trace(
-        go.Scatter(
-            x=df_station['Timestamp_start'], 
-            y=df_station['Vehicle'],
-            mode='lines',
-            name=f'Station {station}'
-        ), row=2, col=1
-    )
-
-# Add traces for each assembly
-for assembly in final_df['AssemblyID'].unique():
-    df_assembly = final_df[final_df['AssemblyID'] == assembly]
-    fig.add_trace(
-        go.Scatter(
-            x=df_assembly['Timestamp_start'], 
-            y=df_assembly['Station'],
-            mode='lines',
-            name=f'Assembly {assembly}'
-        ), row=3, col=1
-    )
-
-# Update layout for a cleaner look
-fig.update_layout(
-    height=1200, 
-    showlegend=False,
-    title_text="Interactions by Vehicle, Station, and Assembly",
-    updatemenus=[
-        dict(
-            buttons=list([
-                dict(
-                    args=[{"visible": [True] * len(final_df['Vehicle'].unique()) + [False] * (len(final_df['Station'].unique()) + len(final_df['AssemblyID'].unique()))}],
-                    label="Vehicle",
-                    method="update"
-                ),
-                dict(
-                    args=[{"visible": [False] * len(final_df['Vehicle'].unique()) + [True] * len(final_df['Station'].unique()) + [False] * len(final_df['AssemblyID'].unique())}],
-                    label="Station",
-                    method="update"
-                ),
-                dict(
-                    args=[{"visible": [False] * (len(final_df['Vehicle'].unique()) + len(final_df['Station'].unique())) + [True] * len(final_df['AssemblyID'].unique())}],
-                    label="Assembly",
-                    method="update"
-                ),
-            ]),
-            direction="down",
-            pad={"r": 10, "t": 10},
-            showactive=True,
-            x=0.1,
-            xanchor="left",
-            y=1.1,
-            yanchor="top"
-        ),
-    ]
-)
-
-# Add dropdown menu with options
+# Update the layout to include dropdown menus
 fig.update_layout(
     updatemenus=[
-        {
-            "buttons": [
+        {'buttons': [
+            {
+                'method': 'update',
+                'label': 'All Stations',
+                'args': [{'visible': [True] * len(final_df)}, {'title': 'All Stations'}]
+            },
+            *[
                 {
-                    "label": "By Vehicle",
-                    "method": "update",
-                    "args": [{"visible": [True if 'Vehicle' in trace.name else False for trace in fig.data]}],
-                },
-                {
-                    "label": "By Station",
-                    "method": "update",
-                    "args": [{"visible": [True if 'Station' in trace.name else False for trace in fig.data]}],
-                },
-                {
-                    "label": "By Assembly",
-                    "method": "update",
-                    "args": [{"visible": [True if 'Assembly' in trace.name else False for trace in fig.data]}],
-                },
+                    'method': 'update',
+                    'label': f'Station {station}',
+                    'args': [{'visible': [True if station == row['Station'] else False for _, row in final_df.iterrows()]},
+                             {'title': f'Station {station}'}]
+                } for station in stations
             ],
-            "direction": "down",
-            "pad": {"r": 10, "t": 10},
-            "showactive": True,
-            "x": 0.1,
-            "xanchor": "left",
-            "y": 1.22,
-            "yanchor": "top"
-        },
-    ]
+            {
+                'method': 'update',
+                'label': 'All Vehicles',
+                'args': [{'visible': [True] * len(final_df)}, {'title': 'All Vehicles'}]
+            },
+            *[
+                {
+                    'method': 'update',
+                    'label': f'Vehicle {vehicle}',
+                    'args': [{'visible': [True if vehicle == row['Vehicle'] else False for _, row in final_df.iterrows()]},
+                             {'title': f'Vehicle {vehicle}'}]
+                } for vehicle in vehicles
+            ],
+            {
+                'method': 'update',
+                'label': 'All Assemblies',
+                'args': [{'visible': [True] * len(final_df)}, {'title': 'All Assemblies'}]
+            },
+            *[
+                {
+                    'method': 'update',
+                    'label': f'Assembly {assembly}',
+                    'args': [{'visible': [True if assembly == row['AssemblyID'] else False for _, row in final_df.iterrows()]},
+                             {'title': f'Assembly {assembly}'}]
+                } for assembly in assemblies
+            ],
+        ],
+         'direction': 'down',
+         'showactive': True,
+        }
+    ],
+    title="Assembly Interactions by Vehicle and Station"
 )
 
+# Set y-axis to have the stations in the desired order
+fig.update_yaxes(type='category')
+
+# Show the figure
 fig.show()
