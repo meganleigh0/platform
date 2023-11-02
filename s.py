@@ -1,84 +1,47 @@
-import plotly.graph_objects as go
+stations = df['Station'].unique()
+stations.sort()
 
-# Assuming final_df is your dataframe with the columns: 'AssemblyID', 'Station', 'Vehicle', 'Timestamp_start', and 'Timestamp_end'
+# Create a list for the dropdown options
+dropdown_options = [{'label': 'All Stations', 'method': 'update', 'args': [{'visible': [True] * len(df)}]}]
+for station in stations:
+    # Boolean list to set 'visible' property
+    visibility = [row['Station'] == station for index, row in df.iterrows()]
+    dropdown_option = {
+        'label': station,
+        'method': 'update',
+        'args': [{'visible': visibility}]
+    }
+    dropdown_options.append(dropdown_option)
 
-# Create the figure
-fig = go.Figure()
-
-# Get unique identifiers for dropdown options
-stations = final_df['Station'].unique()
-vehicles = final_df['Vehicle'].unique()
-assemblies = final_df['AssemblyID'].unique()
-
-# Add all bars initially
-for i, row in final_df.iterrows():
-    fig.add_trace(
-        go.Scatter(
-            x=[row['Timestamp_start'], row['Timestamp_end']],
-            y=[row['Station'], row['Station']],
-            mode='lines',
-            name=f'Vehicle {row["Vehicle"]}',
-            line=dict(color=f'rgba({row["Vehicle"]*12}, {100 + row["Vehicle"]*5}, {150 + row["Vehicle"]*5}, 0.8)'),
-            legendgroup=f'Vehicle {row["Vehicle"]}',
-            showlegend=i==0, # show legend only for the first line of each vehicle
-            hoverinfo='text',
-            text=f'Vehicle: {row["Vehicle"]}<br>AssemblyID: {row["AssemblyID"]}<br>Time Start: {row["Timestamp_start"]}<br>Time End: {row["Timestamp_end"]}'
+# Create traces for the Gantt chart
+traces = []
+for index, row in df.iterrows():
+    traces.append(
+        go.Bar(
+            x=[row['Timestamp_end'] - row['Timestamp_start']],
+            y=['{} - {}'.format(row['Assembly'], row['Station'])],
+            base=row['Timestamp_start'],
+            name=row['Vehicle'],
+            orientation='h',
+            marker=dict(color=hash(row['Vehicle']) & 0xFFFFFF),  # Color by vehicle
         )
     )
 
-# Update the layout to include dropdown menus
-fig.update_layout(
-    updatemenus=[
-        {'buttons': [
-            {
-                'method': 'update',
-                'label': 'All Stations',
-                'args': [{'visible': [True] * len(final_df)}, {'title': 'All Stations'}]
-            },
-            *[
-                {
-                    'method': 'update',
-                    'label': f'Station {station}',
-                    'args': [{'visible': [True if station == row['Station'] else False for _, row in final_df.iterrows()]},
-                             {'title': f'Station {station}'}]
-                } for station in stations
-            ],
-            {
-                'method': 'update',
-                'label': 'All Vehicles',
-                'args': [{'visible': [True] * len(final_df)}, {'title': 'All Vehicles'}]
-            },
-            *[
-                {
-                    'method': 'update',
-                    'label': f'Vehicle {vehicle}',
-                    'args': [{'visible': [True if vehicle == row['Vehicle'] else False for _, row in final_df.iterrows()]},
-                             {'title': f'Vehicle {vehicle}'}]
-                } for vehicle in vehicles
-            ],
-            {
-                'method': 'update',
-                'label': 'All Assemblies',
-                'args': [{'visible': [True] * len(final_df)}, {'title': 'All Assemblies'}]
-            },
-            *[
-                {
-                    'method': 'update',
-                    'label': f'Assembly {assembly}',
-                    'args': [{'visible': [True if assembly == row['AssemblyID'] else False for _, row in final_df.iterrows()]},
-                             {'title': f'Assembly {assembly}'}]
-                } for assembly in assemblies
-            ],
-        ],
-         'direction': 'down',
-         'showactive': True,
-        }
-    ],
-    title="Assembly Interactions by Vehicle and Station"
-)
+# Create the figure with the traces
+fig = go.Figure(data=traces)
 
-# Set y-axis to have the stations in the desired order
-fig.update_yaxes(type='category')
+# Add dropdown
+fig.update_layout(
+    updatemenus=[{
+        'buttons': dropdown_options,
+        'direction': 'down',
+        'showactive': True,
+    }],
+    title="Gantt Chart by Station and Vehicle",
+    xaxis_title="Time",
+    yaxis_title="Assembly - Station",
+    barmode='stack'
+)
 
 # Show the figure
 fig.show()
