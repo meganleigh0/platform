@@ -1,13 +1,8 @@
-import plotly.graph_objects as go
-import numpy as np
-
-# Using the previously processed 'final_df'
-
-# Create a unique color list for vehicles
-color_list = ['#'+ ''.join([np.random.choice(list('0123456789ABCDEF')) for j in range(6)]) for i in range(len(final_df['Vehicle'].unique()))]
-color_dict = dict(zip(final_df['Vehicle'].unique(), color_list))
-
 fig = go.Figure()
+
+# Reduce the width of the lines and add opacity
+line_width = 4
+line_opacity = 0.7
 
 # Add a trace for each vehicle
 for vehicle, color in color_dict.items():
@@ -15,23 +10,36 @@ for vehicle, color in color_dict.items():
 
     x_values = []
     y_values = []
+    hover_text = []
     for _, row in vehicle_df.iterrows():
-        x_values.extend([row['Timestamp_start'], row['Timestamp_end'], None])  # 'None' creates a gap
-        y_values.extend([row['Station'], row['Station'], None])  # 'None' creates a gap
+        # Apply jitter to the y-axis values
+        jitter = np.random.uniform(-0.3, 0.3)  # Adjust the range as needed
+        station_with_jitter = f"{row['Station']} {jitter}"
+        
+        x_values.extend([row['Timestamp_start'], row['Timestamp_end'], None])
+        y_values.extend([station_with_jitter, station_with_jitter, None])
+        hover_info = f"AssemblyID: {row['AssemblyID']}<br>Vehicle: {vehicle}"
+        hover_text.extend([hover_info, hover_info, None])
 
     fig.add_trace(go.Scatter(
         x=x_values,
         y=y_values,
         mode='lines',
         name=f'Vehicle {vehicle}',
-        line=dict(width=10, color=color)
+        line=dict(width=line_width, color=color, opacity=line_opacity),
+        hoverinfo='text',
+        text=hover_text
     ))
 
+# Update the layout to use the jittered station names if necessary
 fig.update_layout(
     title='Assembly Interactions by Vehicle and Station',
     xaxis_title='Timestamp',
     yaxis_title='Station',
-    yaxis_categoryorder='total descending'
+    yaxis=dict(
+        categoryorder='array',
+        categoryarray=[f"{station} {jitter_val}" for station in station_order for jitter_val in np.linspace(-0.3, 0.3, 3)]  # Update this as per your jitter logic
+    )
 )
 
 fig.show()
