@@ -1,77 +1,108 @@
 import pandas as pd
-import plotly.graph_objects as go
+import plotly.graph_objs as go
 
-# Sample DataFrame (replace this with your actual dataframe)
+# Create the DataFrame
 df = pd.DataFrame({
-    'Assembly': ['plate', 'plate'],
-    'Station': ['p1', 'p1'],
-    'Timestamp_start': [0.00, 0.00],
-    'Timestamp_end': [1.00, 1.00],
-    'Vehicle': ['va1', 'va2']
+    'Assembly': ['box', 'wheel', 'tire', 'tire', 'tire', 'toy'],
+    'Station': ['Station 1', 'Station 1', 'Station 1', 'Station 2', 'Station 2', 'Station 2'],
+    'Timestamp_start': [0.00, 0.00, 1.00, 2.00, 5.00, 5.00],
+    'Timestamp_end': [1.00, 1.00, 3.00, 4.00, 7.00, 7.00],
+    'Vehicle': ['bus1', 'car1', 'bus1', 'bus1', 'bus1', 'car1']
 })
 
-# Get a list of unique vehicles to generate a color map
-vehicles = df['Vehicle'].unique()
-colors = px.colors.qualitative.Plotly
-vehicle_color_map = {vehicle: colors[i % len(colors)] for i, vehicle in enumerate(vehicles)}
+# Assign unique colors to each vehicle
+colors = {vehicle: f'rgb({hash(vehicle) % 256}, {hash(vehicle*2) % 256}, {hash(vehicle*3) % 256})' for vehicle in df['Vehicle'].unique()}
 
-# Create a unique list of stations for the dropdown
-stations = df['Station'].unique()
-stations.sort()
+# Initialize figure
+fig = go.Figure()
 
-# Function to create traces for each station
-def create_traces_for_station(df, station=None):
-    traces = []
-    filtered_df = df if station is None else df[df['Station'] == station]
-    for _, row in filtered_df.iterrows():
-        color = vehicle_color_map[row['Vehicle']]
-        traces.append(
-            go.Bar(
-                x=[row['Timestamp_end'] - row['Timestamp_start']],
-                y=[f"{row['Assembly']} - {row['Station']}"],
-                base=row['Timestamp_start'],
-                name=row['Vehicle'],
-                orientation='h',
-                marker=dict(color=color),
-            )
-        )
-    return traces
+# Track the vehicles added to the legend
+legend_added = []
 
-# Create traces for all stations
-all_station_traces = create_traces_for_station(df)
+for vehicle, group in df.groupby('Vehicle'):
+    color = colors[vehicle]
+    # For each vehicle, add all its corresponding bars
+    for i, row in group.iterrows():
+        showlegend = False
 
-# Initialize figure with the traces for all stations
-fig = go.Figure(data=all_station_traces)
+        # If the vehicle is not in the legend, add it
+        if vehicle not in legend_added:
+            showlegend = True
+            legend_added.append(vehicle)
 
-# Create the dropdown options
-dropdown_options = [
-    {'label': 'All Stations', 'method': 'update', 'args': [{'visible': [True] * len(all_station_traces)}]}
-]
+        # Create the bar for the Gantt chart
+        fig.add_trace(go.Bar(
+            x=[row['Timestamp_end'] - row['Timestamp_start']],  # Duration of the task
+            y=[row['Station']],
+            name=vehicle,  # This will put the vehicle name in the legend
+            orientation='h',
+            marker=dict(color=color),
+            showlegend=showlegend,
+            legendgroup=vehicle,  # Group by vehicle for the legend
+            width=0.4,  # You can adjust the width for better spacing
+            base=row['Timestamp_start'],  # Start time of the task
+            text=row['Assembly'],  # The assembly name written on the bar
+            hoverinfo='text+name',  # Show both vehicle and assembly as hover info
+        ))
 
-for station in stations:
-    station_traces = create_traces_for_station(df, station)
-    # Visibility list - True for the current station's traces, False for others
-    visibility = [True if trace.name == station else False for trace in all_station_traces]
-    
-    dropdown_option = {
-        'label': station,
-        'method': 'update',
-        'args': [{'visible': visibility}]
-    }
-    dropdown_options.append(dropdown_option)
-
-# Add dropdown
+# Update layout
 fig.update_layout(
-    updatemenus=[{
-        'buttons': dropdown_options,
-        'direction': 'down',
-        'showactive': True,
-    }],
-    title="Gantt Chart by Station and Vehicle",
-    xaxis_title="Time",
-    yaxis_title="Assembly - Station",
+    title='Assembly Schedule by Station',
+    xaxis_title='Time',
+    yaxis_title='Station',
     barmode='stack',
-    showlegend=False  # Hide legend if not required
+    bargap=0.1,  # Gap between bars of adjacent location coordinates.
+    legend_title_text='Vehicle'
+)
+
+# Show the figure
+fig.show()
+
+
+
+# Filter DataFrame for Station 1 only
+df_station1 = df[df['Station'] == 'Station 1']
+
+# Assign unique colors to each vehicle
+colors = {vehicle: f'rgb({hash(vehicle) % 256}, {hash(vehicle*2) % 256}, {hash(vehicle*3) % 256})' for vehicle in df_station1['Vehicle'].unique()}
+
+# Initialize figure
+fig = go.Figure()
+
+# Track the vehicles added to the legend
+legend_added = []
+
+for index, row in df_station1.iterrows():
+    vehicle = row['Vehicle']
+    color = colors[vehicle]
+    showlegend = False
+
+    # If the vehicle is not in the legend, add it
+    if vehicle not in legend_added:
+        showlegend = True
+        legend_added.append(vehicle)
+
+    # Create the bar for the bar chart
+    fig.add_trace(go.Bar(
+        x=[row['Timestamp_end'] - row['Timestamp_start']],  # Duration of the task
+        y=[row['Assembly']],  # Use Assembly as the y-axis category
+        name=vehicle,  # This will put the vehicle name in the legend
+        orientation='h',
+        marker=dict(color=color),
+        showlegend=showlegend,
+        width=0.4,  # You can adjust the width for better spacing
+        base=row['Timestamp_start'],  # Start time of the task
+        hoverinfo='text+name',  # Show both vehicle and assembly as hover info
+    ))
+
+# Update layout
+fig.update_layout(
+    title='Station 1 Assembly Schedule',
+    xaxis_title='Time',
+    yaxis_title='Assembly',
+    barmode='stack',
+    bargap=0.1,  # Gap between bars of adjacent location coordinates.
+    legend_title_text='Vehicle'
 )
 
 # Show the figure
