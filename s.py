@@ -1,48 +1,46 @@
-import pandas as pd
-import plotly.graph_objs as go
+import plotly.graph_objects as go
 
-# Create the DataFrame
-df = pd.DataFrame({
-    'Assembly': ['box', 'wheel', 'tire', 'tire', 'tire', 'toy'],
-    'Station': ['Station 1', 'Station 1', 'Station 1', 'Station 2', 'Station 2', 'Station 2'],
-    'Timestamp_start': [0.00, 0.00, 1.00, 2.00, 5.00, 5.00],
-    'Timestamp_end': [1.00, 1.00, 3.00, 4.00, 7.00, 7.00],
-    'Vehicle': ['bus1', 'car1', 'bus1', 'bus1', 'bus1', 'car1']
-})
+# Unique list of stations
+stations = grouped_data['Station'].unique()
 
-# Group and aggregate data
-agg_df = df.groupby(['Vehicle', 'Station'])[['Timestamp_start', 'Timestamp_end']].agg({'Timestamp_start': 'min', 'Timestamp_end': 'max'}).reset_index()
-
-# Assign unique colors to each vehicle
-colors = {vehicle: f'rgb({hash(vehicle) % 256}, {hash(vehicle*2) % 256}, {hash(vehicle*3) % 256})' for vehicle in df['Vehicle'].unique()}
-
-# Initialize figure
+# Create a figure with Plotly
 fig = go.Figure()
 
-for vehicle in agg_df['Vehicle'].unique():
-    color = colors[vehicle]
-    vehicle_data = agg_df[agg_df['Vehicle'] == vehicle]
-    
-    # Create the Gantt chart bars
-    fig.add_trace(go.Bar(
-        x=vehicle_data['Timestamp_end'] - vehicle_data['Timestamp_start'],  # Duration of the task
-        y=vehicle_data['Station'],
-        name=vehicle,
-        orientation='h',
-        marker=dict(color=color),
-        text=vehicle_data['Vehicle'],  # Display the vehicle name
-        hoverinfo='text+name',
-    ))
+# Function to update the graph based on the selected station
+def create_station_trace(station):
+    station_data = grouped_data[grouped_data['Station'] == station]
+    for department in station_data['Department'].unique():
+        df = station_data[station_data['Department'] == department]
+        fig.add_trace(
+            go.Bar(
+                x=df['AssemblyID'],
+                y=df['Hours'],
+                name=department,
+                visible=(station == stations[0])  # Only the first station is visible by default
+            )
+        )
 
-# Update layout
+# Adding traces for each station
+for station in stations:
+    create_station_trace(station)
+
+# Dropdown menus
+buttons = [
+    dict(
+        label=station,
+        method="update",
+        args=[{"visible": [station == s for s in stations for _ in grouped_data['Department'].unique()]},
+              {"title": f"Total Hours by Department and Assembly: {station}"}]
+    ) for station in stations
+]
+
+# Adding dropdown to the layout
 fig.update_layout(
-    title='Assembly Schedule by Station',
-    xaxis_title='Time',
-    yaxis_title='Station',
-    barmode='stack',
-    bargap=0.1,
-    legend_title_text='Vehicle'
+    updatemenus=[dict(active=0, buttons=buttons)],
+    title=f"Total Hours by Department and Assembly: {stations[0]}",
+    xaxis_title='Assembly ID',
+    yaxis_title='Total Hours'
 )
 
-# Show the figure
+# Showing the figure
 fig.show()
