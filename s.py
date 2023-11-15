@@ -20,18 +20,26 @@ class Scheduler:
             print("Monthly production already complete.")
 
     def run_for_a_month(self, env, plant_simulation):
+        self.monthly_production_complete = False
         while not self.monthly_production_complete:
             self.run_for_a_day(env, plant_simulation)
 
     def check_month_completion(self):
         if self.current_day > len(production_months[self.current_month]):
-            self.monthly_production_complete = True
             self.current_day = 1
             self.current_month += 1
             if self.current_month >= len(production_months):
+                self.monthly_production_complete = True
                 print("Production for all months complete.")
             else:
-                self.monthly_production_complete = False
+                self.monthly_production_complete = self.is_monthly_production_complete()
+
+    def is_monthly_production_complete(self):
+        for (program, mbom), program_obj in self.schedule.programs.items():
+            month = production_months[self.current_month]
+            if program_obj.get_quantity_for_month(month) > 0:
+                return False
+        return True
 
     def get_next_program(self):
         for (program, mbom), program_obj in self.schedule.programs.items():
@@ -41,20 +49,3 @@ class Scheduler:
                 program_obj.production_plan[month] -= 1
                 return program, mbom
         return None, None
-
-# Usage in your simulation
-env = simpy.Environment()
-schedule = Schedule()
-schedule = schedule.load_schedule()
-plant_simulation = Plant(env)
-
-scheduler = Scheduler(schedule, day_rate=1)
-
-# Example of running day by day
-for day in range(30):  # Assuming a 30-day month
-    scheduler.run_for_a_day(env, plant_simulation)
-
-# Example of running for the entire month
-scheduler.run_for_a_month(env, plant_simulation)
-
-env.run(160)
