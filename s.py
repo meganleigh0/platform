@@ -21,8 +21,14 @@ class Scheduler:
 
     def run_for_a_month(self):
         while self.current_day <= len(production_months[self.current_month]):
-            yield self.env.process(self.run_for_a_day())
+            # Start the daily process and wait for it to complete
+            yield self.env.process(self.run_daily_process())
             self.current_day += 1
+
+    def run_daily_process(self):
+        # Run the process for the day and wait until the next day
+        yield self.env.process(self.run_for_a_day())
+        yield self.env.timeout(24 - self.SHIFT_DURATION)  # Wait for the remainder of the 24-hour day
 
     def run_for_a_day(self):
         start_time = self.env.now
@@ -51,4 +57,4 @@ schedule = Schedule()
 schedule = schedule.load_schedule()
 plant_simulation = Plant(env)
 
-scheduler = Scheduler(env, schedule, day_rate=2)  #⬤
+scheduler = Scheduler(env, schedule, day_rate=2⬤
