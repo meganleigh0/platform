@@ -1,46 +1,60 @@
-import plotly.graph_objects as go
+class Scheduler:
+    def __init__(self, schedule, day_rate):
+        self.schedule = schedule
+        self.day_rate = day_rate
+        self.current_day = 1
+        self.current_month = 0
+        self.monthly_production_complete = False
 
-# Unique list of stations
-stations = grouped_data['Station'].unique()
+    def run_for_a_day(self, env, plant_simulation):
+        if not self.monthly_production_complete:
+            for _ in range(self.day_rate):
+                program, mbom = self.get_next_program()
+                if program:
+                    structure = plant_simulation.induce_structure()
+                    product = load_product(env, mbom)
+                    env.process(plant_simulation.process(structure, product))
+            self.current_day += 1
+            self.check_month_completion()
+        else:
+            print("Monthly production already complete.")
 
-# Create a figure with Plotly
-fig = go.Figure()
+    def run_for_a_month(self, env, plant_simulation):
+        while not self.monthly_production_complete:
+            self.run_for_a_day(env, plant_simulation)
 
-# Function to update the graph based on the selected station
-def create_station_trace(station):
-    station_data = grouped_data[grouped_data['Station'] == station]
-    for department in station_data['Department'].unique():
-        df = station_data[station_data['Department'] == department]
-        fig.add_trace(
-            go.Bar(
-                x=df['AssemblyID'],
-                y=df['Hours'],
-                name=department,
-                visible=(station == stations[0])  # Only the first station is visible by default
-            )
-        )
+    def check_month_completion(self):
+        if self.current_day > len(production_months[self.current_month]):
+            self.monthly_production_complete = True
+            self.current_day = 1
+            self.current_month += 1
+            if self.current_month >= len(production_months):
+                print("Production for all months complete.")
+            else:
+                self.monthly_production_complete = False
 
-# Adding traces for each station
-for station in stations:
-    create_station_trace(station)
+    def get_next_program(self):
+        for (program, mbom), program_obj in self.schedule.programs.items():
+            month = production_months[self.current_month]
+            qty = program_obj.get_quantity_for_month(month)
+            if qty > 0:
+                program_obj.production_plan[month] -= 1
+                return program, mbom
+        return None, None
 
-# Dropdown menus
-buttons = [
-    dict(
-        label=station,
-        method="update",
-        args=[{"visible": [station == s for s in stations for _ in grouped_data['Department'].unique()]},
-              {"title": f"Total Hours by Department and Assembly: {station}"}]
-    ) for station in stations
-]
+# Usage in your simulation
+env = simpy.Environment()
+schedule = Schedule()
+schedule = schedule.load_schedule()
+plant_simulation = Plant(env)
 
-# Adding dropdown to the layout
-fig.update_layout(
-    updatemenus=[dict(active=0, buttons=buttons)],
-    title=f"Total Hours by Department and Assembly: {stations[0]}",
-    xaxis_title='Assembly ID',
-    yaxis_title='Total Hours'
-)
+scheduler = Scheduler(schedule, day_rate=1)
 
-# Showing the figure
-fig.show()
+# Example of running day by day
+for day in range(30):  # Assuming a 30-day month
+    scheduler.run_for_a_day(env, plant_simulation)
+
+# Example of running for the entire month
+scheduler.run_for_a_month(env, plant_simulation)
+
+env.run(160)
