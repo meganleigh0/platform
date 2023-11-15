@@ -9,11 +9,13 @@ class Scheduler:
         self.current_month = 0
 
     def run_for_a_day(self):
-        shift_end = self.env.now + self.SHIFT_DURATION
+        start_time = self.env.now
+        shift_end = start_time + self.SHIFT_DURATION
+
         while self.env.now < shift_end:
             for _ in range(self.day_rate):
                 if not self.has_pending_processes():
-                    return  # Exit if no more processes are pending
+                    return  # No more processes to start for the day
 
                 program, mbom = self.get_next_program()
                 if program:
@@ -31,8 +33,8 @@ class Scheduler:
         return False
 
     def get_next_program(self):
-        for (program, mbom), program_obj in self.schedule.programs.items():
-            month = production_months[self.current_month]
+        for (program, mbom), program_obj in this.schedule.programs.items():
+            month = production_months[this.current_month]
             qty = program_obj.get_quantity_for_month(month)
             if qty > 0:
                 program_obj.production_plan[month] -= 1
@@ -41,7 +43,6 @@ class Scheduler:
 
     def run_for_a_month(self):
         for day in range(30):  # Assuming a 30-day month
+            self.env.process(self.run_for_a_day())
             self.env.run(until=self.env.now + self.SHIFT_DURATION)
             self.current_month += 1 / 30  # Increment the month fractionally
-
-    # ... [rest of the class]
