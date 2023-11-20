@@ -1,36 +1,65 @@
-class Scheduler:
-    def __init__(self, env, schedule, plant_simulation, day_rate):
-        self.env = env
-        self.schedule = schedule
-        self.plant_simulation = plant_simulation
-        self.day_rate = day_rate
-        self.daily_simulation_time = 0  # Track the daily simulation time
+import pandas as pd
+import matplotlib.pyplot as plt
+import plotly.express as px
+from typing import Any, Dict
 
-    def run_program(self, program_instance, mbom, month):
-        total_qty = program_instance.get_quantity_for_month(month)
-        program_start_time = self.env.now
-        while total_qty > 0:
-            if self.daily_simulation_time >= 8:
-                # If the day is over, break and continue the next day
-                break
-            daily_qty = min(self.day_rate, total_qty)
-            for _ in range(daily_qty):
-                structure = self.plant_simulation.induce_structure()
-                product = load_product(self.env, mbom)
-                self.env.process(self.plant_simulation.process(structure, product))
-            total_qty -= daily_qty
-            time_to_run = min(8 - self.daily_simulation_time, 1)  # Run for the remaining time or 1 hour, whichever is less
-            self.env.run(time_to_run)
-            self.daily_simulation_time += time_to_run
-        program_duration = self.env.now - program_start_time
-        print(f"Program {program_instance.name} completed in {program_duration} hours.")
+class Logger:
+    def __init__(self):
+        self.log = []
 
-    def run_day(self, production_months):
-        self.daily_simulation_time = 0  # Reset the daily simulation time
-        for month in production_months:
-            for (program, mbom), program_instance in self.schedule.programs.items():
-                self.run_program(program_instance, mbom, month)
+    def log_entry(self, timestamp: Any, interaction: str, **kwargs: Any) -> None:
+        """
+        Logs an interaction with additional key-value pairs.
 
-    def run_month(self, production_months):
-        for _ in range(20):  # Assuming 20 working days in a month
-            self.run_day(production_months)
+        :param timestamp: The timestamp of the interaction.
+        :param interaction: Description of the interaction.
+        :param kwargs: Additional key-value pairs relevant to the interaction.
+        """
+        entry = {'Timestamp': timestamp, 'Interaction': interaction, **kwargs}
+        self.log.append(entry)
+
+    def to_dataframe(self) -> pd.DataFrame:
+        """
+        Converts the log entries to a pandas DataFrame.
+
+        :return: DataFrame of log entries.
+        """
+        return pd.DataFrame(self.log)
+
+    def print_table(self) -> None:
+        """
+        Prints the log entries in a table format.
+        """
+        df = self.to_dataframe()
+        print(df)
+
+    def visualize(self, x_col: str, y_col: str, title: str, kind: str = 'line') -> None:
+        """
+        Visualizes the log data.
+
+        :param x_col: The column to use for the x-axis.
+        :param y_col: The column to use for the y-axis.
+        :param title: The title of the visualization.
+        :param kind: The kind of plot (e.g., 'line', 'scatter').
+        """
+        df = self.to_dataframe()
+
+        if kind == 'line':
+            plt.plot(df[x_col], df[y_col], '-o')
+            plt.xlabel(x_col)
+            plt.ylabel(y_col)
+            plt.title(title)
+            plt.grid(True)
+            plt.show()
+        elif kind == 'scatter':
+            fig = px.scatter(df, x=x_col, y=y_col, color=y_col)
+            fig.show()
+        else:
+            print(f"Visualization kind '{kind}' not supported.")
+
+# Example usage
+logger = Logger()
+logger.log_entry("2023-01-01 10:00", "Started Process", Process="Cutting", Department="Manufacturing")
+logger.log_entry("2023-01-01 10:05", "Completed Process", Process="Cutting", Department="Manufacturing")
+logger.print_table()
+logger.visualize(x_col='Timestamp', y_col='Process', title='Process Timeline', kind='line')
