@@ -24,8 +24,8 @@ app.layout = html.Div([
     html.H1("Program Schedule"),
     dash_table.DataTable(id='schedule-table', columns=[{"name": "Program", "id": "Program"}, {"name": "MBOM", "id": "MBOM"}] + [{"name": month, "id": month} for month in schedule.months]),
     html.H3("Update Schedule"),
-    dcc.Input(id='program-input', type='text', placeholder='Program Name'),
-    dcc.Input(id='month-input', type='text', placeholder='Month'),
+    dcc.Dropdown(id='program-dropdown', options=[{'label': prog, 'value': prog} for prog, _ in schedule.programs.keys()], placeholder='Select Program'),
+    dcc.Dropdown(id='month-dropdown', options=[{'label': month, 'value': month} for month in schedule.months], placeholder='Select Month'),
     dcc.Input(id='quantity-input', type='number', placeholder='Quantity'),
     html.Button('Update', id='update-button'),
     html.Div(id='update-output')
@@ -35,8 +35,8 @@ app.layout = html.Div([
 @app.callback(
     Output('schedule-table', 'data'),
     [Input('update-button', 'n_clicks')],
-    [State('program-input', 'value'),
-     State('month-input', 'value'),
+    [State('program-dropdown', 'value'),
+     State('month-dropdown', 'value'),
      State('quantity-input', 'value')])
 def update_schedule_display(n_clicks, program, month, quantity):
     if n_clicks:
