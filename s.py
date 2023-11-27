@@ -1,7 +1,14 @@
+# Initialize the Dash app
+app = dash.Dash(__name__)
 
+# Initialize the Schedule object and load data
+schedule = Schedule()
+df = schedule.load_schedule()
+
+# App layout
 app.layout = html.Div([
     html.H1("Program Schedule"),
-    dcc.Graph(id='schedule-table'),
+    dash_table.DataTable(id='schedule-table', columns=[{"name": i, "id": i} for i in df.columns], data=df.to_dict('records')),
     html.H3("Update Schedule"),
     dcc.Input(id='program-input', type='text', placeholder='Program Name'),
     dcc.Input(id='mbom-input', type='text', placeholder='MBOM'),
@@ -10,46 +17,21 @@ app.layout = html.Div([
     html.Button('Update', id='update-button'),
     html.Div(id='update-output')
 ])
-Load and Display the Schedule:
-Implement a function to load and display the schedule in a table format using Dash components.
 
-python
-Copy code
+# Callback to update the table
 @app.callback(
-    Output('schedule-table', 'figure'),
+    Output('schedule-table', 'data'),
     [Input('update-button', 'n_clicks')],
     [State('program-input', 'value'),
      State('mbom-input', 'value'),
      State('month-input', 'value'),
      State('quantity-input', 'value')])
 def update_schedule_display(n_clicks, program, mbom, month, quantity):
-    schedule = Schedule()
-    df = schedule.load_schedule()
-    # Update the schedule if update button is clicked
     if n_clicks:
         schedule.update_schedule(program, month, quantity)
-        df = schedule.load_schedule()  # Reload the updated schedule
-    return {'data': [{'type': 'table', 'header': {'values': df.columns}, 'cells': {'values': df.values.T}}]}
-# Update Functionality:
-# Add functionality to update the schedule based on the user inputs.
+    df = schedule.load_schedule()  # Reload the updated schedule
+    return df.to_dict('records')
 
-@app.callback(
-    Output('update-output', 'children'),
-    [Input('update-button', 'n_clicks')],
-    [State('program-input', 'value'),
-     State('mbom-input', 'value'),
-     State('month-input', 'value'),
-     State('quantity-input', 'value')])
-def update_schedule(n_clicks, program, mbom, month, quantity):
-    if n_clicks:
-        schedule = Schedule()
-        schedule.update_schedule(program, month, quantity)
-        return f"Updated {program} for {month} with quantity {quantity}."
-    return ""
-Run the App:
-At the end of your script, add the following line to run the app.
-
-python
-Copy code
+# Run the app
 if __name__ == '__main__':
     app.run_server(debug=True)
