@@ -1,51 +1,46 @@
+import dash
+from dash import html, dcc, dash_table
+from dash.dependencies import Input, Output, State
+
+# Initialize the Dash app
+app = dash.Dash(__name__)
+
+# Initialize the Schedule object and load data
+schedule = Schedule()
+schedule.load_schedule()  # Load initial data into the schedule
+
+# Function to convert schedule data to a format suitable for Dash DataTable
+def generate_table_data():
+    data = []
+    for (program, mbom), prog_obj in schedule.programs.items():
+        row = {'Program': program, 'MBOM': mbom}
+        for month in schedule.months:
+            row[month] = prog_obj.get_quantity_for_month(month)
+        data.append(row)
+    return data
+
 # App layout
 app.layout = html.Div([
-    # ... other components ...
+    html.H1("Program Schedule"),
+    dash_table.DataTable(id='schedule-table', columns=[{"name": "Program", "id": "Program"}, {"name": "MBOM", "id": "MBOM"}] + [{"name": month, "id": month} for month in schedule.months]),
+    html.H3("Update Schedule"),
     dcc.Dropdown(id='program-dropdown', options=[{'label': prog, 'value': prog} for prog, _ in schedule.programs.keys()], placeholder='Select Program'),
     dcc.Dropdown(id='month-dropdown', options=[{'label': month, 'value': month} for month in schedule.months], placeholder='Select Month'),
-    dcc.Input(id='quantity-input', type='number', min=0, placeholder='Quantity'),
+    dcc.Input(id='quantity-input', type='number', placeholder='Quantity'),
     html.Button('Update', id='update-button'),
-    html.Div(id='update-output'),
-    html.Button('-', id='decrement-button'),
-    html.Button('+', id='increment-button')
+    html.Div(id='update-output')
 ])
 
-# Callback for updating the quantity input based on program and month selection
-@app.callback(
-    Output('quantity-input', 'value'),
-    [Input('program-dropdown', 'value'),
-     Input('month-dropdown', 'value')])
-def set_initial_quantity(program, month):
-    if program and month:
-        # Assuming program is the program name
-        quantity = schedule.programs.get(program).get_quantity_for_month(month)
-        return quantity
-    return 0
-
-# Callback to update the schedule and refresh the table
+# Callback to update the table
 @app.callback(
     Output('schedule-table', 'data'),
-    [Input('update-button', 'n_clicks'),
-     Input('decrement-button', 'n_clicks'),
-     Input('increment-button', 'n_clicks')],
+    [Input('update-button', 'n_clicks')],
     [State('program-dropdown', 'value'),
      State('month-dropdown', 'value'),
-     State('quantity-input', 'value')],
-    prevent_initial_call=True)
-def update_schedule_display(update_clicks, decrement_clicks, increment_clicks, program, month, quantity):
-    ctx = dash.callback_context
-    if not ctx.triggered:
-        return generate_table_data()
-    
-    button_id = ctx.triggered[0]['prop_id'].split('.')[0]
-    if button_id == 'decrement-button':
-        quantity = max(0, quantity - 1)
-    elif button_id == 'increment-button':
-        quantity += 1
-
-    if program and month:
+     State('quantity-input', 'value')])
+def update_schedule_display(n_clicks, program, month, quantity):
+    if n_clicks:
         schedule.update_schedule(program, month, quantity)
-
     return generate_table_data()
 
 # Run the app
