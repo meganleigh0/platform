@@ -1,48 +1,11 @@
-import dash
-from dash import html, dcc, dash_table
-from dash.dependencies import Input, Output, State
-
-# Initialize the Dash app
-app = dash.Dash(__name__)
-
-# Initialize the Schedule object and load data
-schedule = Schedule()
-schedule.load_schedule()  # Load initial data into the schedule
-
-# Function to convert schedule data to a format suitable for Dash DataTable
-def generate_table_data():
-    data = []
-    for (program, mbom), prog_obj in schedule.programs.items():
-        row = {'Program': program, 'MBOM': mbom}
-        for month in schedule.months:
-            row[month] = prog_obj.get_quantity_for_month(month)
-        data.append(row)
-    return data
-
-# App layout
-app.layout = html.Div([
-    html.H1("Program Schedule"),
-    dash_table.DataTable(id='schedule-table', columns=[{"name": "Program", "id": "Program"}, {"name": "MBOM", "id": "MBOM"}] + [{"name": month, "id": month} for month in schedule.months]),
-    html.H3("Update Schedule"),
-    dcc.Dropdown(id='program-dropdown', options=[{'label': prog, 'value': prog} for prog, _ in schedule.programs.keys()], placeholder='Select Program'),
-    dcc.Dropdown(id='month-dropdown', options=[{'label': month, 'value': month} for month in schedule.months], placeholder='Select Month'),
-    dcc.Input(id='quantity-input', type='number', placeholder='Quantity'),
-    html.Button('Update', id='update-button'),
-    html.Div(id='update-output')
-])
-
-# Callback to update the table
 @app.callback(
     Output('schedule-table', 'data'),
     [Input('update-button', 'n_clicks')],
     [State('program-dropdown', 'value'),
+     State('mbom-dropdown', 'value'),  # Assuming you have a dropdown to select MBOM
      State('month-dropdown', 'value'),
      State('quantity-input', 'value')])
-def update_schedule_display(n_clicks, program, month, quantity):
+def update_schedule_display(n_clicks, program, mbom, month, quantity):
     if n_clicks:
-        schedule.update_schedule(program, month, quantity)
+        schedule.update_schedule(program, mbom, month, quantity)
     return generate_table_data()
-
-# Run the app
-if __name__ == '__main__':
-    app.run_server(debug=True)
