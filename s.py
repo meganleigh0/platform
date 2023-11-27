@@ -1,51 +1,55 @@
-import dash
-import dash_bootstrap_components as dbc
-import dash_core_components as dcc
-import dash_html_components as html
-from dash.dependencies import Input, Output
-import pandas as pd
 
-# Import your custom Schedule class
-from schedule import Schedule
-
-# Initialize the Dash app with Bootstrap
-app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
-
-# Instantiate your Schedule class
-schedule = Schedule()
-schedule_df = schedule.load_schedule()  # Assuming this returns a DataFrame
-
-# Dash Layout
 app.layout = html.Div([
-    dbc.Container([
-        html.H1('Production Schedule'),
-        dbc.Row([
-            dbc.Col([
-                dcc.Dropdown(
-                    id='month-dropdown',
-                    options=[{'label': month, 'value': month} for month in schedule.months],
-                    value=schedule.months[0]
-                )
-            ]),
-        ]),
-        dbc.Row([
-            dbc.Col([
-                html.Div(id='schedule-table')
-            ]),
-        ]),
-        # Add more components as needed for your interactivity
-    ])
+    html.H1("Program Schedule"),
+    dcc.Graph(id='schedule-table'),
+    html.H3("Update Schedule"),
+    dcc.Input(id='program-input', type='text', placeholder='Program Name'),
+    dcc.Input(id='mbom-input', type='text', placeholder='MBOM'),
+    dcc.Input(id='month-input', type='text', placeholder='Month'),
+    dcc.Input(id='quantity-input', type='number', placeholder='Quantity'),
+    html.Button('Update', id='update-button'),
+    html.Div(id='update-output')
 ])
+Load and Display the Schedule:
+Implement a function to load and display the schedule in a table format using Dash components.
 
-# Callback for updating the table
+python
+Copy code
 @app.callback(
-    Output('schedule-table', 'children'),
-    [Input('month-dropdown', 'value')]
-)
-def update_table(selected_month):
-    filtered_df = schedule_df[schedule_df['Month'] == selected_month]
-    return dbc.Table.from_dataframe(filtered_df, striped=True, bordered=True, hover=True)
+    Output('schedule-table', 'figure'),
+    [Input('update-button', 'n_clicks')],
+    [State('program-input', 'value'),
+     State('mbom-input', 'value'),
+     State('month-input', 'value'),
+     State('quantity-input', 'value')])
+def update_schedule_display(n_clicks, program, mbom, month, quantity):
+    schedule = Schedule()
+    df = schedule.load_schedule()
+    # Update the schedule if update button is clicked
+    if n_clicks:
+        schedule.update_schedule(program, month, quantity)
+        df = schedule.load_schedule()  # Reload the updated schedule
+    return {'data': [{'type': 'table', 'header': {'values': df.columns}, 'cells': {'values': df.values.T}}]}
+# Update Functionality:
+# Add functionality to update the schedule based on the user inputs.
 
-# Run the app
+@app.callback(
+    Output('update-output', 'children'),
+    [Input('update-button', 'n_clicks')],
+    [State('program-input', 'value'),
+     State('mbom-input', 'value'),
+     State('month-input', 'value'),
+     State('quantity-input', 'value')])
+def update_schedule(n_clicks, program, mbom, month, quantity):
+    if n_clicks:
+        schedule = Schedule()
+        schedule.update_schedule(program, month, quantity)
+        return f"Updated {program} for {month} with quantity {quantity}."
+    return ""
+Run the App:
+At the end of your script, add the following line to run the app.
+
+python
+Copy code
 if __name__ == '__main__':
     app.run_server(debug=True)
