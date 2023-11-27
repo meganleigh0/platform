@@ -1,36 +1,50 @@
 import dash
+import dash_bootstrap_components as dbc
 import dash_core_components as dcc
 import dash_html_components as html
 from dash.dependencies import Input, Output
-from analysis import visualization as viz
-from sim import main
+import pandas as pd
 
-# Initialize the Dash app
-app = dash.Dash(__name__)
+# Import your custom Schedule class
+from schedule import Schedule
 
-# Define the layout of the app
+# Initialize the Dash app with Bootstrap
+app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
+
+# Instantiate your Schedule class
+schedule = Schedule()
+schedule_df = schedule.load_schedule()  # Assuming this returns a DataFrame
+
+# Dash Layout
 app.layout = html.Div([
-    html.H1("Manufacturing Simulation Dashboard"),
-    html.Button("Run Simulation", id='run-simulation-button'),
-    dcc.Graph(id='gantt-chart'),
-    dcc.Graph(id='department-graph')
+    dbc.Container([
+        html.H1('Production Schedule'),
+        dbc.Row([
+            dbc.Col([
+                dcc.Dropdown(
+                    id='month-dropdown',
+                    options=[{'label': month, 'value': month} for month in schedule.months],
+                    value=schedule.months[0]
+                )
+            ]),
+        ]),
+        dbc.Row([
+            dbc.Col([
+                html.Div(id='schedule-table')
+            ]),
+        ]),
+        # Add more components as needed for your interactivity
+    ])
 ])
 
-# Callback for running the simulation
+# Callback for updating the table
 @app.callback(
-    [Output('gantt-chart', 'figure'),
-     Output('department-graph', 'figure')],
-    [Input('run-simulation-button', 'n_clicks')]
+    Output('schedule-table', 'children'),
+    [Input('month-dropdown', 'value')]
 )
-def update_output(n_clicks):
-    if n_clicks is not None:
-        # Run the simulation
-        main.run_simulation()
-        # Generate visualizations
-        gantt_chart = viz.gantt()
-        department_graph = viz.department_graph()
-        return gantt_chart, department_graph
-    return dash.no_update
+def update_table(selected_month):
+    filtered_df = schedule_df[schedule_df['Month'] == selected_month]
+    return dbc.Table.from_dataframe(filtered_df, striped=True, bordered=True, hover=True)
 
 # Run the app
 if __name__ == '__main__':
