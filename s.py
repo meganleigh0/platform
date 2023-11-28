@@ -1,30 +1,16 @@
-from dash import html, dcc
-from dash.dependencies import Input, Output
-from app import app
-import pages.page1, pages.page2  # Import other pages as needed
+from dash import Dash
+from server import server
 
-# Define the navigation bar
-navbar = html.Div([
-    dcc.Link('Home', href='/'),
-    dcc.Link('Page 1', href='/page1'),
-    dcc.Link('Page 2', href='/page2'),
-    # Add more links as needed
-], className='navbar')
+# Initialize the Dash app with external stylesheets if needed
+app = Dash(__name__, server=server, suppress_callback_exceptions=True)
 
-# Main layout of the app
-app.layout = html.Div([
-    dcc.Location(id='url', refresh=False),
-    navbar,
-    html.Div(id='page-content')
-])
+# Import the layout and callbacks
+from index import app_layout
+app.layout = app_layout
 
-# Callback to update the page content
-@app.callback(Output('page-content', 'children'),
-              [Input('url', 'pathname')])
-def display_page(pathname):
-    if pathname == '/page1':
-        return pages.page1.layout
-    elif pathname == '/page2':
-        return pages.page2.layout
-    else:
-        return "Welcome to the Home Page"
+# Setup the callbacks (this is important to make sure all callbacks are loaded)
+import pages.page1  # Make sure to import all pages that contain callbacks
+import pages.page2
+
+if __name__ == '__main__':
+    app.run_server(debug=True)
