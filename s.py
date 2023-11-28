@@ -1,43 +1,39 @@
-from dash import Dash
-from flask import Flask
+.main-container {
+    font-family: 'Roboto', sans-serif;
+    color: #333;
+}
 
-server = Flask(__name__)
-app = Dash(__name__, server=server, suppress_callback_exceptions=True)
+.nav-bar {
+    background-color: #f8f9fa;
+    padding: 10px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
 
-from dash import html, dcc
-import dash
-from app import app
-import pages.home as home
-import pages.page1 as page1
-import pages.page2 as page2
+.nav-link {
+    margin-right: 15px;
+    color: #007bff;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.nav-link:hover {
+    color: #0056b3;
+    text-decoration: underline;
+}
+
+@media (max-width: 768px) {
+    .nav-link {
+        display: block;
+        margin-bottom: 10px;
+    }
+}
 
 app.layout = html.Div([
     dcc.Location(id='url', refresh=False),
     html.Div([
-        dcc.Link('Home | ', href='/'),
-        dcc.Link('Page 1 | ', href='/page1'),
-        dcc.Link('Page 2', href='/page2'),
+        dcc.Link('Home', href='/', className='nav-link'),
+        dcc.Link('Page 1', href='/page1', className='nav-link'),
+        dcc.Link('Page 2', href='/page2', className='nav-link'),
     ], className='nav-bar'),
     html.Div(id='page-content')
-])
-
-@app.callback(dash.dependencies.Output('page-content', 'children'),
-              [dash.dependencies.Input('url', 'pathname')])
-def display_page(pathname):
-    if pathname == '/':
-        return home.layout
-    elif pathname == '/page1':
-        return page1.layout
-    elif pathname == '/page2':
-        return page2.layout
-    else:
-        return '404'
-
-if __name__ == '__main__':
-    app.run_server(debug=True)
-
-from dash import html
-
-layout = html.Div([
-    html.H1('Welcome to the Home Page')
-])
+], className='main-container')
