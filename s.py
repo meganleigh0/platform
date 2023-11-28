@@ -1,7 +1,21 @@
+from dash import Dash
+from flask import Flask
+
+# Initialize Flask server
+server = Flask(__name__)
+
+# Initialize Dash app
+app = Dash(__name__, server=server, suppress_callback_exceptions=True)
+
+# Import the layout and register it with the app
+from layouts import layout
+app.layout = layout
+
+# Run the app
+if __name__ == '__main__':
+    app.run_server(debug=True)
+
 from dash import html, dcc
-from dash.dependencies import Input, Output
-from app import app
-import pages.page1, pages.page2  # Import other pages as needed
 
 # Define the navigation bar
 navbar = html.Div([
@@ -11,12 +25,16 @@ navbar = html.Div([
     # Add more links as needed
 ], className='navbar')
 
-# Main layout of the app
+# Define the layout
 layout = html.Div([
     dcc.Location(id='url', refresh=False),
     navbar,
     html.Div(id='page-content')
 ])
+
+from dash.dependencies import Input, Output
+from app import app
+import pages.page1, pages.page2  # Import other pages as needed
 
 # Callback to update the page content
 @app.callback(Output('page-content', 'children'),
