@@ -1,8 +1,7 @@
-app.py
 from dash import Dash
 from flask import Flask
-from layouts import layout
-import callbacks  # Import callbacks to ensure they are registered
+from index import layout
+import callbacks  # Ensure callbacks are registered
 
 server = Flask(__name__)
 app = Dash(__name__, server=server, suppress_callback_exceptions=True)
@@ -11,7 +10,6 @@ app.layout = layout
 if __name__ == '__main__':
     app.run_server(debug=True)
 
-layouts.py
 from dash import html, dcc
 
 # Define the navigation bar
@@ -29,39 +27,26 @@ layout = html.Div([
     html.Div(id='page-content')
 ])
 
-callbakcs.py
+from dash import html
+
+def layout():
+    return html.Div([
+        html.H1('Dash App - Page 1'),
+        # Add more components for Page 1 here
+    ])
 from dash.dependencies import Input, Output
 from app import app
-import page_layouts
+from pages import home, page1, page2
 
 @app.callback(
     Output('page-content', 'children'),
     [Input('url', 'pathname')]
 )
 def display_page(pathname):
-    if pathname == '/page1':
-        return page_layouts.page1_layout()
+    if pathname == '/':
+        return home.layout()
+    elif pathname == '/page1':
+        return page1.layout()
     elif pathname == '/page2':
-        return page_layouts.page2_layout()
-    elif pathname in ['/', None]:
-        return page_layouts.home_layout()
-    return "404 Page Not Found"
-
-
-from dash import html
-
-def home_layout():
-    return html.Div([
-        html.H1("Welcome to the Home Page")
-    ])
-
-def page1_layout():
-    return html.Div([
-        html.H1("Dash App - Page 1")
-    ])
-
-def page2_layout():
-    return html.Div([
-        html.H1("Dash App - Page 2")
-    ])
-
+        return page2.layout()
+    return '404 Page Not Found'
