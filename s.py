@@ -1,52 +1,25 @@
-from dash import Dash
-from flask import Flask
-from index import layout
-import callbacks  # Ensure callbacks are registered
-
-server = Flask(__name__)
-app = Dash(__name__, server=server, suppress_callback_exceptions=True)
-app.layout = layout
-
-if __name__ == '__main__':
-    app.run_server(debug=True)
-
-from dash import html, dcc
-
-# Define the navigation bar
-navbar = html.Div([
-    dcc.Link('Home', href='/'),
-    dcc.Link('Page 1', href='/page1'),
-    dcc.Link('Page 2', href='/page2'),
-    # Add more links as needed
-], className='navbar')
-
-# Main layout of the app
-layout = html.Div([
-    dcc.Location(id='url', refresh=False),
-    navbar,
-    html.Div(id='page-content')
-])
-
-from dash import html
-
-def layout():
-    return html.Div([
-        html.H1('Dash App - Page 1'),
-        # Add more components for Page 1 here
-    ])
 from dash.dependencies import Input, Output
 from app import app
-from pages import home, page1, page2
+import pages.home as home
+import pages.page1 as page1
+import pages.page2 as page2
 
 @app.callback(
     Output('page-content', 'children'),
     [Input('url', 'pathname')]
 )
 def display_page(pathname):
+    print(f"Current pathname: {pathname}")  # Print the current pathname
+
     if pathname == '/':
+        print("Loading home layout")  # Debug print statement
         return home.layout()
     elif pathname == '/page1':
+        print("Loading page 1 layout")  # Debug print statement
         return page1.layout()
     elif pathname == '/page2':
+        print("Loading page 2 layout")  # Debug print statement
         return page2.layout()
-    return '404 Page Not Found'
+    else:
+        print("Loading 404 layout")  # Debug print statement
+        return '404 Page Not Found'
