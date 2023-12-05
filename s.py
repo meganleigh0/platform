@@ -1,71 +1,26 @@
 import pandas as pd
 import plotly.express as px
 
-# Assuming 'df' is your DataFrame with the simulation data
-# Example: df = pd.read_csv('your_data.csv')
-
+# Simulated data based on the user's description
 data = {
-    "Interaction": [
-        "Divorce Structure 1", "Start Plant 1 Hull 1", "Start Plant 1 Turret 1",
-        "Divorce Structure 2", "Start Plant 1 Hull 2", "Start Plant 1 Turret 2",
-        "Complete Plant 1 Hull 1", "Hull Status", "Turret Status"
-    ],
-    "Timestamp": [
-        0.000, 4.060, 4.060,
-        0.000, 4.060, 4.060,
-        16.060, 17.000, 17.000
-    ],
-    "Completed": [None, None, None, None, None, None, None, 1, 1],
-    "InProcessing": [None, None, None, None, None, None, None, 1, 1]
+    "Interaction": ["Plant 1 Status"] * 6,
+    "Timestamp": [0.00, 0.00, 0.00, 2.00, 3.00, 4.00],
+    "Turret_Completed": [0, 0, 0, 1, 1, 3],
+    "Turret_Processing": [1, 2, 3, 2, 3, 1],
+    "Hull_Completed": [0, 0, 0, 0, 1, 2],
+    "Hull_Processing": [1, 2, 3, 3, 2, 3]
 }
 
 df = pd.DataFrame(data)
-# Gantt Chart for Timeline Events
-import pandas as pd
-import plotly.express as px
 
-# Assuming 'df' is your DataFrame
-# Example: df = pd.read_csv('your_data.csv')
+# Creating an animated bar chart using Plotly
+fig = px.bar(df, 
+             x="Timestamp", 
+             y=["Turret_Completed", "Turret_Processing", "Hull_Completed", "Hull_Processing"],
+             labels={"value": "Count", "variable": "Status"},
+             animation_frame="Timestamp",
+             range_y=[0, df[["Turret_Completed", "Turret_Processing", "Hull_Completed", "Hull_Processing"]].values.max() + 1],
+             title="Simulation Data Over Time")
 
-# Pivoting the DataFrame for suitable format
-df_pivot = df.pivot_table(index='Timestamp', columns='Interaction', values=['InProcessing', 'Completed'], fill_value=0)
-
-# Resetting index to get 'Timestamp' as a column
-df_pivot.reset_index(inplace=True)
-
-# Melting the DataFrame for Plotly
-df_melted = df_pivot.melt(id_vars=['Timestamp'], var_name='Process', value_name='Count')
-
-# Creating the animated bar chart
-fig = px.bar(df_melted, x='Process', y='Count', color='Process', animation_frame='Timestamp')
-
-# Customizing the layout
-fig.update_layout(title='Simulation Process Over Time', xaxis_title='Process', yaxis_title='Count')
-
-# Showing the plot
+fig.update_layout(barmode='group')
 fig.show()
-
-
-import plotly.express as px
-
-# Assuming df_melted is your prepared DataFrame
-fig = px.bar(df_melted, x='Process', y='Count', color='Process', animation_frame='Timestamp')
-
-# Update layout for animation speed and transition duration
-fig.update_layout(
-    title='Simulation Process Over Time',
-    xaxis_title='Process',
-    yaxis_title='Count',
-    # Adjusting animation frame duration (in milliseconds)
-    updatemenus=[{
-        'buttons': [{
-            'args': [None, {'frame': {'duration': 500, 'redraw': True}, 'fromcurrent': True, 'transition': {'duration': 300, 'easing': 'linear'}}],
-            'label': 'Play',
-            'method': 'animate'
-        }]
-    }]
-)
-
-# Showing the plot
-fig.show()
-
