@@ -1,21 +1,11 @@
-def calculate_total_hours(operations_list):
-    # Initialize a dictionary to store total hours per department
-    department_hours = {}
+def calculate_hours_by_station_optimized(df):
+    # Explode the 'operations' column to separate rows
+    exploded_df = df.explode('operations')
 
-    # Process each assembly
-    for assembly in operations_list:
-        # Flatten the assembly's operations
-        flattened_operations = [op for op in assembly]
+    # Calculate hours for each row
+    exploded_df['hours'] = exploded_df['operations'].apply(lambda op: float(op[0]))
 
-        # Process each operation in the assembly
-        for operation in flattened_operations:
-            hours, name, department = operation
-            hours = float(hours)  # Convert hours to a float
+    # Group by 'station' and sum the hours
+    station_hours = exploded_df.groupby('station')['hours'].sum()
 
-            # Add hours to the respective department
-            if department in department_hours:
-                department_hours[department] += hours
-            else:
-                department_hours[department] = hours
-
-    return department_hours
+    return station_hours.to_dict()
