@@ -1,9 +1,3 @@
-import dash
-from dash import dcc, html
-from dash.dependencies import Input, Output
-import pandas as pd
-import plotly.graph_objs as go
-
 # Assuming the provided code, necessary libraries, and viz module are imported
 simulation = Simulation()
 
@@ -29,23 +23,31 @@ app.layout = html.Div([
         value=1
     ),
     html.Button('Run Simulation', id='run-simulation-btn'),
+    html.Div(id='schedule-table'),
     dcc.Graph(id='gantt-chart')
 ])
 
 @app.callback(
-    Output('gantt-chart', 'figure'),
+    [Output('gantt-chart', 'figure'),
+     Output('schedule-table', 'children')],
     [Input('run-simulation-btn', 'n_clicks')],
     [State('month-selector', 'value'),
      State('rate-input', 'value'),
      State('duration-selector', 'value')]
 )
-def update_gantt_chart(n_clicks, selected_month, rate, duration):
+def update_output(n_clicks, selected_month, rate, duration):
     if n_clicks:
         simulation.run_simulation(rate, duration, selected_month)
         logger.save_to_csv('assembly.csv')
         gantt_chart = viz.gantt()
-        return gantt_chart
-    return go.Figure()
+
+        # Generate schedule data table
+        schedule_data = simulation.scheduler.get_schedule_data()  # Assuming such a method exists
+        schedule_table = pd.DataFrame(schedule_data).to_html()
+
+        return gantt_chart, schedule_table
+
+    return go.Figure(), "Select options and run the simulation."
 
 if __name__ == '__main__':
     app.run_server(debug=True)
