@@ -1,21 +1,16 @@
 import dash
-import dash_core_components as dcc
-import dash_html_components as html
+from dash import dcc, html
 from dash.dependencies import Input, Output
 import pandas as pd
+import plotly.graph_objs as go
 
-# Assuming the provided code and necessary libraries are imported
-from datetime import datetime
-
-# Initialize the simulation
+# Assuming the provided code, necessary libraries, and viz module are imported
 simulation = Simulation()
 
-# Initialize the Dash app
 app = dash.Dash(__name__)
 
-# Define the layout of the app
 app.layout = html.Div([
-    html.H1("Production Schedule Calendar"),
+    html.H1("Production Schedule Simulator"),
     dcc.Dropdown(
         id='month-selector',
         options=[
@@ -23,44 +18,34 @@ app.layout = html.Div([
         ],
         value='January 2024'
     ),
-    html.Button('Start Simulation', id='start-btn'),
-    html.Button('Reset Simulation', id='reset-btn'),
-    html.Div(id='calendar-output')
+    dcc.Input(id='rate-input', type='number', placeholder='Enter Rate'),
+    dcc.RadioItems(
+        id='duration-selector',
+        options=[
+            {'label': 'Day', 'value': 1},
+            {'label': 'Week', 'value': 7},
+            {'label': 'Month', 'value': 30}
+        ],
+        value=1
+    ),
+    html.Button('Run Simulation', id='run-simulation-btn'),
+    dcc.Graph(id='gantt-chart')
 ])
 
-# Function to create a calendar-like display
-def create_calendar(month, schedule_data):
-    # Convert schedule_data into a calendar format
-    # This is a placeholder and should be replaced with actual logic
-    calendar = []
-    for week in range(4):  # Assuming 4 weeks in a month for simplicity
-        week_row = html.Tr([html.Td(f"Week {week+1}")])
-        calendar.append(week_row)
-    return html.Table(calendar)
-
-# Callback for updating the calendar display
 @app.callback(
-    Output('calendar-output', 'children'),
-    [Input('month-selector', 'value'),
-     Input('start-btn', 'n_clicks'),
-     Input('reset-btn', 'n_clicks')]
+    Output('gantt-chart', 'figure'),
+    [Input('run-simulation-btn', 'n_clicks')],
+    [State('month-selector', 'value'),
+     State('rate-input', 'value'),
+     State('duration-selector', 'value')]
 )
-def update_calendar(selected_month, start_clicks, reset_clicks):
-    ctx = dash.callback_context
+def update_gantt_chart(n_clicks, selected_month, rate, duration):
+    if n_clicks:
+        simulation.run_simulation(rate, duration, selected_month)
+        logger.save_to_csv('assembly.csv')
+        gantt_chart = viz.gantt()
+        return gantt_chart
+    return go.Figure()
 
-    if not ctx.triggered:
-        button_id = 'No clicks yet'
-    else:
-        button_id = ctx.triggered[0]['prop_id'].split('.')[0]
-
-    if button_id == 'start-btn' and start_clicks:
-        simulation.run_simulation(rate=5, run=30, month=selected_month)
-    elif button_id == 'reset-btn' and reset_clicks:
-        simulation.clear_simulation()
-
-    schedule_data = {} # Retrieve the actual schedule data here
-    return create_calendar(selected_month, schedule_data)
-
-# Run the Dash app
 if __name__ == '__main__':
     app.run_server(debug=True)
