@@ -3,27 +3,29 @@ from dash import dcc, html, dash_table
 from dash.dependencies import Input, Output, State
 import plotly.graph_objs as go
 import dash_bootstrap_components as dbc
+import pandas as pd
+import datetime
+import simpy  # Ensure simpy is installed
 
-# Assuming the provided code, necessary libraries, and viz module are imported
-simulation = Simulation()
+# Assuming the provided code and necessary libraries are imported
 
-# Select a Bootstrap theme
-app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
+simulation = Simulation()  # Create a simulation instance
 
-# Function to generate the schedule table (implement according to your data structure)
+# Function to extract and format schedule data for DataTable
 def generate_schedule_table(schedule):
-    # Convert schedule to DataFrame or similar structure if not already
-    return dash_table.DataTable(
-        data=schedule.to_dict('records'), 
-        columns=[{'name': i, 'id': i} for i in schedule.columns],
-        style_as_list_view=True,
-        style_header={'backgroundColor': 'rgb(30, 30, 30)', 'color': 'white'},
-        style_cell={'backgroundColor': 'rgb(50, 50, 50)', 'color': 'white'}
-    )
+    data = []
+    for program_key, program_obj in schedule.programs.items():
+        program_name = program_key[0]
+        for month, quantity in program_obj.production_plan.items():
+            data.append({'Program': program_name, 'Month': month, 'Quantity': quantity})
+    
+    return pd.DataFrame(data)
+
+app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 
 app.layout = dbc.Container([
     dbc.Row(dbc.Col(html.H1("Production Schedule Simulator"), width={'size': 6, 'offset': 3})),
-    dbc.Row(dbc.Col(html.Div(id='schedule-table'), width=12)),
+    dbc.Row(dbc.Col(dash_table.DataTable(id='schedule-table'), width=12)),
     dbc.Row([
         dbc.Col(dcc.Dropdown(
             id='month-selector',
@@ -41,15 +43,29 @@ app.layout = dbc.Container([
 
 @app.callback(
     [Output('gantt-chart', 'figure'),
-     Output('schedule-table', 'children')],
+     Output('schedule-table', 'data')],
     [Input('run-simulation-btn', 'n_clicks'),
      Input('clear-simulation-btn', 'n_clicks')],
     [State('month-selector', 'value'),
      State('duration-selector', 'value')]
 )
 def update_output(run_clicks, clear_clicks, selected_month, duration):
-    # ... (callback logic remains the same)
-    pass
+    ctx = dash.callback_context
+
+    if ctx.triggered and ctx.triggered[0]['prop_id'] == 'run-simulation-btn.n_clicks':
+        simulation.run_simulation(rate=5, run=duration, month=selected_month)  # Adjust rate as needed
+        gantt_chart = viz.gantt()  # Assuming this returns a figure object
+        schedule_data = generate_schedule_table(simulation.schedule)
+        return gantt_chart, schedule_data.to_dict('records')
+
+    if ctx.triggered and ctx.triggered[0]['prop_id'] == 'clear-simulation-btn.n_clicks':
+        simulation.clear_simulation()
+        schedule_data = generate_schedule_table(simulation.schedule)
+        return go.Figure(), schedule_data.to_dict('records')
+
+    # Initial load
+    schedule_data = generate_schedule_table(simulation.schedule)
+    return go.Figure(), schedule_data.to_dict('records')
 
 if __name__ == '__main__':
     app.run_server(debug=True)
