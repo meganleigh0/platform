@@ -1,54 +1,39 @@
-import dash
-from dash import dcc, html, dash_table
-from dash.dependencies import Input, Output, State
-import plotly.graph_objs as go
-import dash_bootstrap_components as dbc
-import pandas as pd
+import plotly.express as px
 
-# ... Other imports and Simulation class ...
-
-simulation = Simulation()
-
-# ... Functions like generate_calendar_style_schedule_table() ...
-
-app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
-
-app.layout = dbc.Container([
-    dbc.Row(dbc.Col(html.H1("Production Schedule Simulator"), width=12)),
-    dbc.Row(dbc.Col(dash_table.DataTable(id='schedule-table', columns=[], data=[], style_cell={'textAlign': 'center'}, style_header={'backgroundColor': 'rgb(210, 210, 210)', 'fontWeight': 'bold'}), width=12)),
+def generate_visuals_from_log():
+    df = pd.read_csv('logs/assembly.csv')
+    df['Timestamp_start'] = pd.to_datetime(df['Timestamp_start'])
+    df['Timestamp_end'] = pd.to_datetime(df['Timestamp_end'])
     
-    # Dropdown and Rate Input
-    dbc.Row([
-        dbc.Col(dcc.Dropdown(id='month-selector', options=[{'label': month, 'value': month} for month in simulation.schedule.months], value=simulation.schedule.months[0]), width=4),
-        dbc.Col(html.Div([
-            html.Label("Rate:"),
-            dcc.Input(id='rate-input', type='number', value=5, placeholder='Enter Rate')
-        ]), width=2)
-    ]),
-    
-    # Duration Selection
-    dbc.Row([
-        dbc.Col(html.Div([
-            dcc.RadioItems(id='duration-selector', options=[{'label': 'Day', 'value': 1}, {'label': 'Week', 'value': 7}, {'label': 'Month', 'value': 30}], value=1, inline=True)
-        ]), width=6)
-    ]),
-    
-    # Buttons
-    dbc.Row([
-        dbc.Col(dbc.Button('Run Simulation', id='run-simulation-btn', color="primary"), width=2),
-        dbc.Col(dbc.Button('Clear Simulation', id='clear-simulation-btn', color="secondary"), width=2)
-    ]),
-    
-    # Gantt Chart and Loading
-    dbc.Row(dbc.Col(dcc.Graph(id='gantt-chart', figure=go.Figure()), width=12)),
-    dbc.Row(dbc.Col(dcc.Loading(children=[html.Div(id='loading-output')], type='default'), width=12)),
+    # Gantt Chart for Assemblies
+    fig_gantt = px.timeline(df, x_start='Timestamp_start', x_end='Timestamp_end', y='Assembly', color='Vehicle')
+    fig_gantt.update_layout(xaxis_title='Time', yaxis_title='Assembly', title='Assembly Timeline')
 
-    # Additional Sections (placeholders, implement according to your data and requirements)
-    dbc.Row(dbc.Col(html.Div(id='current-production-plan'), width=12)),
-    dbc.Row(dbc.Col(html.Div(id='department-station-requirements'), width=12))
-], fluid=True)
+    # Station Utilization
+    df['Duration'] = (df['Timestamp_end'] - df['Timestamp_start']).dt.total_seconds() / 3600  # Duration in hours
+    fig_station = px.bar(df.groupby('Station')['Duration'].sum().reset_index(), x='Station', y='Duration')
+    fig_station.update_layout(xaxis_title='Station', yaxis_title='Hours', title='Station Utilization')
 
-# ... Callbacks ...
+    return fig_gantt, fig_station
+@app.callback(
+    [Output('gantt-chart', 'figure'),
+     Output('station-utilization', 'figure'),  # Assuming you have a dcc.Graph with this ID
+     # ... other outputs ... ],
+    [Input('run-simulation-btn', 'n_clicks'),
+     # ... other inputs ... ],
+    [State('month-selector', 'value'),
+     State('rate-input', 'value'),
+     State('duration-selector', 'value')]
+)
+def update_output(run_clicks, clear_clicks, selected_month, rate, duration):
+    # ... existing logic ...
+    
+    if ctx.triggered and ctx.triggered[0]['prop_id'] == 'run-simulation-btn.n_clicks':
+        # ... simulation logic ...
+        fig_gantt, fig_station = generate_visuals_from_log()
+        return fig_gantt, fig_station,  # ... other return values ...
 
-if __name__ == '__main__':
-    app.run_server(debug=True)
+    # ... existing logic ...
+dbc.Row(dbc.Col(dcc.Graph(id='gantt-chart', figure=go.Figure()), width=12)),
+dbc.Row(dbc.Col(dcc.Graph(id='station-utilization', figure=go.Figure()), width=12)),
+# ... other layout components ...
