@@ -1,18 +1,20 @@
 import dash
-from dash import html, dcc, Input, Output, callback
+from dash import html, dcc, Input, Output, callback, State
 import dash_bootstrap_components as dbc
 import plotly.express as px
 import pandas as pd
 
-# Load your data
-df = pd.read_csv('simulation_data.csv')
+# Assuming the Simulation class and its dependencies are defined and imported
+from your_simulation_module import Simulation  # Replace with your actual import
 
-# Calculate duration for the scatter plot
-df['Duration'] = pd.to_datetime(df['Timestamp_end']) - pd.to_datetime(df['Timestamp_start'])
-df['Duration'] = df['Duration'].dt.total_seconds() / 3600  # Convert duration to hours
+# Initialize the Simulation instance
+simulation = Simulation()
 
 # Initialize the Dash app with a Bootstrap theme
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
+
+# Load initial data
+df = pd.read_csv('simulation_data.csv')
 
 # Define the layout of the app
 app.layout = dbc.Container([
@@ -22,12 +24,15 @@ app.layout = dbc.Container([
     dbc.Row([
         dbc.Col([
             dcc.Dropdown(
-                id='vehicle-dropdown',
-                options=[{'label': v, 'value': v} for v in df['Vehicle'].unique()],
-                value=df['Vehicle'].unique()[0],
+                id='month-dropdown',
+                options=[{'label': month, 'value': month} for month in simulation.schedule.months.unique()],
+                value=simulation.schedule.months.unique()[0],
                 clearable=False,
                 style={'width': '100%'}
-            )
+            ),
+            dcc.Input(id='rate-input', type='number', placeholder='Enter rate', style={'width': '100%', 'margin': '10px 0'}),
+            dcc.Input(id='run-input', type='number', placeholder='Enter run quantity', style={'width': '100%', 'margin': '10px 0'}),
+            html.Button('Run Simulation', id='run-simulation-button', n_clicks=0, className='btn btn-primary', style={'width': '100%'})
         ], width=4)
     ]),
     dbc.Row([
@@ -42,51 +47,39 @@ app.layout = dbc.Container([
     ])
 ], fluid=True)
 
-# Callback for the station utilization bar chart
+# Callback for running the simulation
 @app.callback(
     Output('station-utilization-bar-chart', 'figure'),
-    Input('vehicle-dropdown', 'value')
-)
-def update_station_bar_chart(vehicle):
-    filtered_df = df[df['Vehicle'] == vehicle]
-    station_count = filtered_df['Station'].value_counts()
-    fig = px.bar(station_count, labels={'index': 'Station', 'value': 'Assembly Count'},
-                 template="plotly_dark")
-    fig.update_layout(transition_duration=500)
-    return fig
-
-# Callback for the assembly duration scatter plot
-@app.callback(
     Output('assembly-duration-scatter-plot', 'figure'),
-    Input('vehicle-dropdown', 'value')
-)
-def update_assembly_duration_scatter_plot(vehicle):
-    filtered_df = df[df['Vehicle'] == vehicle]
-    fig = px.scatter(filtered_df, x='Station', y='Duration', color='Assembly',
-                     template="plotly_dark")
-    fig.update_layout(transition_duration=500)
-    return fig
-
-# Callback for the workflow time series
-@app.callback(
     Output('workflow-time-series', 'figure'),
-    Input('vehicle-dropdown', 'value')
-)
-def update_workflow_time_series(vehicle):
-    filtered_df = df[df['Vehicle'] == vehicle]
-    fig = px.line(filtered_df, x='Timestamp_start', y='Assembly', template="plotly_dark")
-    fig.update_layout(transition_duration=500)
-    return fig
-
-# Callback for the data table
-@app.callback(
     Output('data-table', 'figure'),
-    Input('vehicle-dropdown', 'value')
+    Input('run-simulation-button', 'n_clicks'),
+    State('month-dropdown', 'value'),
+    State('rate-input', 'value'),
+    State('run-input', 'value'),
+    prevent_initial_call=True
 )
-def update_data_table(vehicle):
-    filtered_df = df[df['Vehicle'] == vehicle]
-    fig = dbc.Table.from_dataframe(filtered_df, striped=True, bordered=True, hover=True)
-    return fig
+def run_simulation_and_update_plots(n_clicks, month, rate, run):
+    if n_clicks > 0:
+        simulation.run_simulation(rate, run, month)
+        # Reload the data
+        df = pd.read_csv('simulation_data.csv')
+
+        # Generate updated plots
+        station_count = df['Station'].value_counts()
+        bar_chart = px.bar(station_count, labels={'index': 'Station', 'value': 'Assembly Count'})
+
+        df['Duration'] = pd.to_datetime(df['Timestamp_end']) - pd.to_datetime(df['Timestamp_start'])
+        df['Duration'] = df['Duration'].dt.total_seconds() / 3600
+        scatter_plot = px.scatter(df, x='Station', y='Duration', color='Assembly')
+
+        time_series = px.line(df, x='Timestamp_start', y='Assembly')
+
+        data_table = dbc.Table.from_dataframe(df, striped=True, bordered=True, hover=True)
+
+        return bar_chart, scatter_plot, time_series, data_table
+
+    raise dash.exceptions.PreventUpdate
 
 # Run the app
 if __name__ == '__main__':
