@@ -1,50 +1,53 @@
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
 
-# Example dataframes (replace with actual data)
+# Assuming these are your dataframes (replace with actual data loading)
 # station_requirements = pd.DataFrame([...])
 # department_requirements = pd.DataFrame([...])
 # schedule = pd.DataFrame([...])
+
+# Function to calculate the total hours
+def calculate_total_hours(schedule, requirements, month=None, program=None):
+    filtered_schedule = schedule.copy()
+    if month:
+        filtered_schedule = filtered_schedule[['Program', month]]
+    if program:
+        filtered_schedule = filtered_schedule[filtered_schedule['Program'] == program]
+
+    # Merging schedule with requirements and calculating total hours
+    merged_data = pd.merge(filtered_schedule, requirements, on='Program')
+    for month in schedule.columns[2:]:
+        if month in merged_data:
+            merged_data[month] *= merged_data['Hours']
+
+    return merged_data.groupby('Program')[schedule.columns[2:]].sum()
 
 # Streamlit layout
 st.set_page_config(layout="wide")
 st.title("Production Schedule Analysis")
 
-# Selection options
-st.sidebar.header("Select Options")
-selected_month = st.sidebar.selectbox("Select a Month", ['All'] + list(schedule.columns[2:]))
-selected_program = st.sidebar.selectbox("Select a Program", ['All'] + list(schedule['Program'].unique()))
+# Month and Program selection
+months = ['All'] + list(schedule.columns[2:])
+programs = ['All'] + list(schedule['Program'].unique())
+selected_month = st.sidebar.selectbox("Select a Month", months)
+selected_program = st.sidebar.selectbox("Select a Program", programs)
 
-# Function to calculate requirements
-def calculate_requirements(selected_month, selected_program):
-    month_filter = (schedule.columns[2:] if selected_month == 'All' else [selected_month])
-    program_filter = (schedule['Program'] if selected_program == 'All' else [selected_program])
+# Filter by selected options
+month_filter = None if selected_month == 'All' else selected_month
+program_filter = None if selected_program == 'All' else selected_program
 
-    month_schedule = schedule[schedule['Program'].isin(program_filter)][['Program'] + month_filter]
-    station_req = pd.merge(month_schedule, station_requirements, on='Program')
-    department_req = pd.merge(month_schedule, department_requirements, on='Program')
+# Calculate total hours for station and department
+total_station_hours = calculate_total_hours(schedule, station_requirements, month_filter, program_filter)
+total_department_hours = calculate_total_hours(schedule, department_requirements, month_filter, program_filter)
 
-    station_req['Total Station Hours'] = station_req[month_filter].multiply(station_req['Hours'], axis="index")
-    department_req['Total Department Hours'] = department_req[month_filter].multiply(department_req['Hours'], axis="index")
-
-    return station_req, department_req
-
-station_req, department_req = calculate_requirements(selected_month, selected_program)
-
-# Display total hours
+# Display results
 col1, col2 = st.columns(2)
 with col1:
-    st.header("Total Station Hours")
-    st.bar_chart(station_req.groupby('Program')['Total Station Hours'].sum())
+    st.header("Station Requirements")
+    st.dataframe(total_station_hours)
+    st.bar_chart(total_station_hours.sum())
 
 with col2:
-    st.header("Total Department Hours")
-    st.bar_chart(department_req.groupby('Program')['Total Department Hours'].sum())
-
-# Detailed Data Tables (if required)
-if st.checkbox("Show Detailed Data", False):
-    st.subheader("Detailed Station Data")
-    st.dataframe(station_req)
-    st.subheader("Detailed Department Data")
-    st.dataframe(department_req)
+    st.header("Department Requirements")
+    st.dataframe(total_department_hours)
+    st.bar_chart(total_department_hours.sum())
