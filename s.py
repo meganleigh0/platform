@@ -5,22 +5,26 @@ import pandas as pd
 # Assuming df is your DataFrame
 # df = pd.read_csv('your_data.csv')  # Load your DataFrame
 
+# Convert utilization to percentage
+df['Utilization'] = df['Utilization'] * 100
+
 # Aggregate utilization by plant
-plant_utilization = df.groupby('Plant')['Utilization'].mean().reset_index()
+plant_utilization = df.groupby('plant')['Utilization'].mean().reset_index()
 
 # Create a subplot
+num_plants = len(plant_utilization['plant'].unique())
 fig = sp.make_subplots(
-    rows=2, cols=len(plant_utilization['Plant'].unique()),
-    subplot_titles=plant_utilization['Plant'].unique(),
-    specs=[[{"type": "indicator"}] * len(plant_utilization), [{"type": "bar"}] * len(plant_utilization)]
+    rows=2, cols=num_plants,
+    subplot_titles=plant_utilization['plant'].unique(),
+    specs=[[{"type": "indicator"}] * num_plants, [{"type": "bar"}] * num_plants]
 )
 
 # Add gauges for each plant
-for i, plant in enumerate(plant_utilization['Plant'].unique(), 1):
+for i, plant in enumerate(plant_utilization['plant'].unique(), 1):
     fig.add_trace(
         go.Indicator(
             mode="gauge+number",
-            value=plant_utilization[plant_utilization['Plant'] == plant]['Utilization'].iloc[0],
+            value=plant_utilization[plant_utilization['plant'] == plant]['Utilization'].iloc[0],
             title={'text': f"Plant {plant}"},
             gauge={'axis': {'range': [0, 100]}, 'bar': {'color': "darkblue"}}
         ),
@@ -28,7 +32,7 @@ for i, plant in enumerate(plant_utilization['Plant'].unique(), 1):
     )
 
     # Add detailed bar chart for each plant by department
-    department_utilization = df[df['Plant'] == plant].groupby('Department')['Utilization'].mean().reset_index()
+    department_utilization = df[df['plant'] == plant].groupby('Department')['Utilization'].mean().reset_index()
     fig.add_trace(
         go.Bar(
             x=department_utilization['Department'],
