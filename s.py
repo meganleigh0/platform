@@ -1,17 +1,26 @@
-def generate_calendar_style_schedule_table(schedule, selected_month):
-    data = []
-    for program_key, program_obj in schedule.programs.items():
-        program_name = program_key[0]
-        for month, quantity in program_obj.production_plan.items():
-            data.append({'Program': program_name, 'Month': month, 'Quantity': quantity})
+# Load your data
+df = pd.read_csv('logs/assembly.csv')
+df['Duration'] = round(df['Timestamp_end'] - df['Timestamp_start'], 2)
 
-    df = pd.DataFrame(data)
-    month_order = schedule.months
-    pivot_df = df.pivot(index='Program', columns='Month', values='Quantity').fillna(0).reindex(columns=month_order).reset_index()
+# Sidebar for vehicle selection
+vehicle = st.sidebar.selectbox("Select Vehicle", df['Vehicle'].unique())
+filtered_df = df[df['Vehicle'] == vehicle]
 
-    # Create a dictionary to apply custom styling to column headers
-    header_style = {selected_month: 'background-color: #0074e4; color: white; font-weight: bold;'}
+# Dashboard Title
+st.title("Manufacturing Simulation Dashboard")
 
-    # Apply the styling to the column headers
-    styled_df = pivot_df.style.set_table_styles([{'selector': 'th', 'props': header_style}])
-    return styled_df
+# Station Utilization Bar Chart
+station_count = filtered_df['Station'].value_counts()
+fig1 = px.bar(station_count)
+st.plotly_chart(fig1)
+
+# Assembly Duration Scatter Plot
+fig2 = px.scatter(filtered_df, x='Station', y='Duration', color='Assembly')
+st.plotly_chart(fig2)
+
+# Workflow Time Series
+fig3 = px.line(filtered_df, x='Timestamp_start', y='Assembly')
+st.plotly_chart(fig3)
+
+# Data Table
+st.write(filtered_df)
