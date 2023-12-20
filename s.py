@@ -1,39 +1,49 @@
-import plotly.express as px
+import streamlit as st
+import pandas as pd
+import plotly.graph_objs as go
+import simpy  # Ensure simpy is installed
 
-def generate_visuals_from_log():
-    df = pd.read_csv('logs/assembly.csv')
-    df['Timestamp_start'] = pd.to_datetime(df['Timestamp_start'])
-    df['Timestamp_end'] = pd.to_datetime(df['Timestamp_end'])
-    
-    # Gantt Chart for Assemblies
-    fig_gantt = px.timeline(df, x_start='Timestamp_start', x_end='Timestamp_end', y='Assembly', color='Vehicle')
-    fig_gantt.update_layout(xaxis_title='Time', yaxis_title='Assembly', title='Assembly Timeline')
+# Import or define your Simulation, Schedule, and other classes here
 
-    # Station Utilization
-    df['Duration'] = (df['Timestamp_end'] - df['Timestamp_start']).dt.total_seconds() / 3600  # Duration in hours
-    fig_station = px.bar(df.groupby('Station')['Duration'].sum().reset_index(), x='Station', y='Duration')
-    fig_station.update_layout(xaxis_title='Station', yaxis_title='Hours', title='Station Utilization')
+simulation = Simulation()  # Create a simulation instance
 
-    return fig_gantt, fig_station
-@app.callback(
-    [Output('gantt-chart', 'figure'),
-     Output('station-utilization', 'figure'),  # Assuming you have a dcc.Graph with this ID
-     # ... other outputs ... ],
-    [Input('run-simulation-btn', 'n_clicks'),
-     # ... other inputs ... ],
-    [State('month-selector', 'value'),
-     State('rate-input', 'value'),
-     State('duration-selector', 'value')]
-)
-def update_output(run_clicks, clear_clicks, selected_month, rate, duration):
-    # ... existing logic ...
-    
-    if ctx.triggered and ctx.triggered[0]['prop_id'] == 'run-simulation-btn.n_clicks':
-        # ... simulation logic ...
-        fig_gantt, fig_station = generate_visuals_from_log()
-        return fig_gantt, fig_station,  # ... other return values ...
+def generate_calendar_style_schedule_table(schedule):
+    data = []
+    for program_key, program_obj in schedule.programs.items():
+        program_name = program_key[0]
+        for month, quantity in program_obj.production_plan.items():
+            data.append({'Program': program_name, 'Month': month, 'Quantity': quantity})
 
-    # ... existing logic ...
-dbc.Row(dbc.Col(dcc.Graph(id='gantt-chart', figure=go.Figure()), width=12)),
-dbc.Row(dbc.Col(dcc.Graph(id='station-utilization', figure=go.Figure()), width=12)),
-# ... other layout components ...
+    df = pd.DataFrame(data)
+    month_order = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+    pivot_df = df.pivot(index='Program', columns='Month', values='Quantity').fillna(0).reset_index()
+    pivot_df = pivot_df[['Program'] + month_order]  # Ensure months are in correct order
+    return pivot_df
+
+# Streamlit layout
+st.title("Production Schedule Simulator")
+
+# Display the schedule table
+schedule_data = generate_calendar_style_schedule_table(simulation.schedule)
+st.dataframe(schedule_data)
+
+# Month selector
+selected_month = st.selectbox("Select Month", options=simulation.schedule.months)
+
+# Duration selector
+duration = st.radio("Select Duration", options=['Day', 'Week', 'Month'], index=0)
+duration_values = {'Day': 1, 'Week': 7, 'Month': 30}
+
+# Rate input
+rate = st.number_input("Enter Rate", min_value=1, value=5)
+
+# Run simulation button
+if st.button("Run Simulation"):
+    simulation.run_simulation(rate, duration_values[duration], selected_month)
+    gantt_chart = viz.gantt()  # Replace with actual function to generate Gantt chart
+    st.plotly_chart(gantt_chart)
+
+# Clear simulation button
+if st.button("Clear Simulation"):
+    simulation.clear_simulation()
+    st.plotly_chart(go.Figure())
