@@ -5,35 +5,49 @@ import pandas as pd
 station_data = pd.read_csv('station_requirements.csv')
 department_data = pd.read_csv('department_requirements.csv')
 
-# Calculate total hours for all programs
-total_station_hours = station_data['Station Hours'].sum()
-total_department_hours = department_data['Department Hours'].sum()
+# Layout style
+st.set_page_config(layout="wide")
 
 # Streamlit layout
 st.title("Production Schedule Analysis")
 
-st.header("Total Hours Required for All Programs")
-st.write(f"Total Station Hours: {total_station_hours}")
-st.write(f"Total Department Hours: {total_department_hours}")
+# Month and Program Selection
+selected_month = st.sidebar.selectbox("Select a Month", sorted(station_data['Month'].unique()))
+selected_program = st.sidebar.selectbox("Select a Program", ['All Programs'] + list(station_data['Program'].unique()))
 
-# Dropdown for selecting a program
-st.header("Individual Program Analysis")
-selected_program = st.selectbox("Select a Program", station_data['Program'].unique())
+# Filter data based on the selected month and program
+if selected_program != 'All Programs':
+    station_data = station_data[(station_data['Month'] == selected_month) & (station_data['Program'] == selected_program)]
+    department_data = department_data[(department_data['Month'] == selected_month) & (department_data['Program'] == selected_program)]
+else:
+    station_data = station_data[station_data['Month'] == selected_month]
+    department_data = department_data[department_data['Month'] == selected_month]
 
-# Filter data based on the selected program
-program_station_data = station_data[station_data['Program'] == selected_program]
-program_department_data = department_data[department_data['Program'] == selected_program]
+# Calculate total hours
+total_station_hours = station_data['Station Hours'].sum()
+total_department_hours = department_data['Department Hours'].sum()
 
-# Display program-specific data
-st.subheader(f"Station Requirements for {selected_program}")
-st.dataframe(program_station_data)
+# Display total hours
+col1, col2 = st.columns(2)
+col1.metric("Total Station Hours", total_station_hours)
+col2.metric("Total Department Hours", total_department_hours)
 
-st.subheader(f"Department Requirements for {selected_program}")
-st.dataframe(program_department_data)
+# Visualizations
+st.header(f"Station and Department Hours for {selected_month}")
+col3, col4 = st.columns(2)
+with col3:
+    st.subheader("Station Hours")
+    station_chart = station_data.groupby('Station Name')['Station Hours'].sum().sort_values()
+    st.bar_chart(station_chart)
 
-# Visualization (if required)
-# For example, bar charts for station hours
-st.bar_chart(program_station_data.groupby('Station Name')['Station Hours'].sum())
+with col4:
+    st.subheader("Department Hours")
+    department_chart = department_data.groupby('Department ID')['Department Hours'].sum().sort_values()
+    st.bar_chart(department_chart)
 
-# Similarly, you can visualize department hours
-st.bar_chart(program_department_data.groupby('Department ID')['Department Hours'].sum())
+# Detailed Data Tables (if required)
+if st.checkbox("Show Detailed Data"):
+    st.subheader("Detailed Station Data")
+    st.dataframe(station_data)
+    st.subheader("Detailed Department Data")
+    st.dataframe(department_data)
