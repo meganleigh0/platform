@@ -1,26 +1,39 @@
-# Load your data
-df = pd.read_csv('logs/assembly.csv')
-df['Duration'] = round(df['Timestamp_end'] - df['Timestamp_start'], 2)
+import streamlit as st
+import pandas as pd
+from your_module import Simulation, Scheduler, Program
 
-# Sidebar for vehicle selection
-vehicle = st.sidebar.selectbox("Select Vehicle", df['Vehicle'].unique())
-filtered_df = df[df['Vehicle'] == vehicle]
+# Initialize the Simulation
+simulation = Simulation()
 
-# Dashboard Title
-st.title("Manufacturing Simulation Dashboard")
+# Function to aggregate required hours by department and station
+def aggregate_data(simulation):
+    data = {
+        'program': [],
+        'month': [],
+        'hours_by_department': [],
+        'hours_by_station': []
+    }
 
-# Station Utilization Bar Chart
-station_count = filtered_df['Station'].value_counts()
-fig1 = px.bar(station_count)
-st.plotly_chart(fig1)
+    for (program_key, program) in simulation.schedule.programs.items():
+        for month in simulation.schedule.months:
+            quantity = program.get_quantity_for_month(month)
+            if quantity > 0:
+                data['program'].append(program.name)
+                data['month'].append(month)
+                data['hours_by_department'].append(program.product_department_req * quantity)
+                data['hours_by_station'].append(program.product_station_req * quantity)
 
-# Assembly Duration Scatter Plot
-fig2 = px.scatter(filtered_df, x='Station', y='Duration', color='Assembly')
-st.plotly_chart(fig2)
+    return pd.DataFrame(data)
 
-# Workflow Time Series
-fig3 = px.line(filtered_df, x='Timestamp_start', y='Assembly')
-st.plotly_chart(fig3)
+# Aggregate the data
+aggregated_data = aggregate_data(simulation)
 
-# Data Table
-st.write(filtered_df)
+# Streamlit layout
+st.title("Production Schedule Overview")
+
+# Display the aggregated data in a table
+st.header("Program Requirements by Month")
+st.dataframe(aggregated_data)
+
+# Additional Visualization (if required)
+# st.bar_chart(aggregated_data['hours_by_department'])
