@@ -1,41 +1,39 @@
-def save_station_requirements_to_csv(schedule, filename='station_requirements.csv'):
-    data = []
+import streamlit as st
+import pandas as pd
 
-    for program_key, program_obj in schedule.programs.items():
-        program_name = program_obj.name
-        for month in schedule.months:
-            quantity = program_obj.get_quantity_for_month(month)
-            if quantity > 0:
-                for station_name, station_hours in program_obj.product_station_req.items():
-                    data.append({
-                        'Program': program_name,
-                        'Month': month,
-                        'Station Name': station_name,
-                        'Station Hours': station_hours * quantity
-                    })
+# Read the data from CSV files
+station_data = pd.read_csv('station_requirements.csv')
+department_data = pd.read_csv('department_requirements.csv')
 
-    df = pd.DataFrame(data)
-    df.to_csv(filename, index=False)
+# Calculate total hours for all programs
+total_station_hours = station_data['Station Hours'].sum()
+total_department_hours = department_data['Department Hours'].sum()
 
+# Streamlit layout
+st.title("Production Schedule Analysis")
 
-def save_department_requirements_to_csv(schedule, filename='department_requirements.csv'):
-    data = []
+st.header("Total Hours Required for All Programs")
+st.write(f"Total Station Hours: {total_station_hours}")
+st.write(f"Total Department Hours: {total_department_hours}")
 
-    for program_key, program_obj in schedule.programs.items():
-        program_name = program_obj.name
-        for month in schedule.months:
-            quantity = program_obj.get_quantity_for_month(month)
-            if quantity > 0:
-                for dept_id, dept_hours in program_obj.product_department_req.items():
-                    data.append({
-                        'Program': program_name,
-                        'Month': month,
-                        'Department ID': dept_id,
-                        'Department Hours': dept_hours * quantity
-                    })
+# Dropdown for selecting a program
+st.header("Individual Program Analysis")
+selected_program = st.selectbox("Select a Program", station_data['Program'].unique())
 
-    df = pd.DataFrame(data)
-    df.to_csv(filename, index=False)
+# Filter data based on the selected program
+program_station_data = station_data[station_data['Program'] == selected_program]
+program_department_data = department_data[department_data['Program'] == selected_program]
 
-# Example usage
-# save_department_requirements_to_csv(schedule)
+# Display program-specific data
+st.subheader(f"Station Requirements for {selected_program}")
+st.dataframe(program_station_data)
+
+st.subheader(f"Department Requirements for {selected_program}")
+st.dataframe(program_department_data)
+
+# Visualization (if required)
+# For example, bar charts for station hours
+st.bar_chart(program_station_data.groupby('Station Name')['Station Hours'].sum())
+
+# Similarly, you can visualize department hours
+st.bar_chart(program_department_data.groupby('Department ID')['Department Hours'].sum())
