@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import matplotlib.pyplot as plt
 
 # Example dataframes (replace with actual data)
 # station_requirements = pd.DataFrame([...])
@@ -7,35 +8,43 @@ import pandas as pd
 # schedule = pd.DataFrame([...])
 
 # Streamlit layout
+st.set_page_config(layout="wide")
 st.title("Production Schedule Analysis")
 
-# Month selection
-months = schedule.columns[2:]  # Assuming first two columns are 'Program' and 'mbom'
-selected_month = st.selectbox("Select a Month", months)
+# Selection options
+st.sidebar.header("Select Options")
+selected_month = st.sidebar.selectbox("Select a Month", ['All'] + list(schedule.columns[2:]))
+selected_program = st.sidebar.selectbox("Select a Program", ['All'] + list(schedule['Program'].unique()))
 
-# Calculate requirements
-def calculate_requirements(selected_month):
-    # Filter the schedule for the selected month
-    month_schedule = schedule[['Program', selected_month]]
+# Function to calculate requirements
+def calculate_requirements(selected_month, selected_program):
+    month_filter = (schedule.columns[2:] if selected_month == 'All' else [selected_month])
+    program_filter = (schedule['Program'] if selected_program == 'All' else [selected_program])
 
-    # Merge with station and department requirements
+    month_schedule = schedule[schedule['Program'].isin(program_filter)][['Program'] + month_filter]
     station_req = pd.merge(month_schedule, station_requirements, on='Program')
     department_req = pd.merge(month_schedule, department_requirements, on='Program')
 
-    # Calculate total hours
-    station_req['Total Station Hours'] = station_req[selected_month] * station_req['Hours']
-    department_req['Total Department Hours'] = department_req[selected_month] * department_req['Hours']
+    station_req['Total Station Hours'] = station_req[month_filter].multiply(station_req['Hours'], axis="index")
+    department_req['Total Department Hours'] = department_req[month_filter].multiply(department_req['Hours'], axis="index")
 
     return station_req, department_req
 
-station_req, department_req = calculate_requirements(selected_month)
+station_req, department_req = calculate_requirements(selected_month, selected_program)
 
-# Display results
-st.header(f"Station Requirements for {selected_month}")
-st.dataframe(station_req[['Program', 'Station', 'Total Station Hours']])
+# Display total hours
+col1, col2 = st.columns(2)
+with col1:
+    st.header("Total Station Hours")
+    st.bar_chart(station_req.groupby('Program')['Total Station Hours'].sum())
 
-st.header(f"Department Requirements for {selected_month}")
-st.dataframe(department_req[['Program', 'DepartmentID', 'Total Department Hours']])
+with col2:
+    st.header("Total Department Hours")
+    st.bar_chart(department_req.groupby('Program')['Total Department Hours'].sum())
 
-# Visualization (if required)
-# Bar charts or other visualizations can be added here based on the aggregated data
+# Detailed Data Tables (if required)
+if st.checkbox("Show Detailed Data", False):
+    st.subheader("Detailed Station Data")
+    st.dataframe(station_req)
+    st.subheader("Detailed Department Data")
+    st.dataframe(department_req)
