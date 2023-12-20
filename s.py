@@ -1,51 +1,21 @@
-import streamlit as st
-import pandas as pd
-import plotly.graph_objs as go
-import simpy  # Ensure simpy is installed
-import time
+def generate_calendar_style_schedule_table(schedule, highlight_month):
+    data = []
+    for program_key, program_obj in schedule.programs.items():
+        program_name = program_key[0]
+        for month, quantity in program_obj.production_plan.items():
+            data.append({'Program': program_name, 'Month': month, 'Quantity': quantity})
 
-# Import or define your Simulation, Schedule, and other classes here
+    df = pd.DataFrame(data)
+    month_order = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+    pivot_df = df.pivot(index='Program', columns='Month', values='Quantity').fillna(0).reset_index()
+    pivot_df = pivot_df[['Program'] + month_order]  # Ensure months are in correct order
 
-simulation = Simulation()  # Create a simulation instance
-
-def generate_calendar_style_schedule_table(schedule):
-    # Your existing function code
-
-# Streamlit layout
-st.title("Production Schedule Simulator")
-
-# Sidebar for user inputs
-with st.sidebar:
-    st.header("Simulation Settings")
-    selected_month = st.selectbox("Select Month", options=simulation.schedule.months)
-    duration = st.radio("Select Duration", options=['Day', 'Week', 'Month'], index=0)
-    rate = st.number_input("Enter Rate", min_value=1, value=5)
+    # Apply styling
+    def highlight_column(s):
+        return ['background-color: lightgreen' if s.name == highlight_month else '' for _ in s]
     
-    if st.button("Run Simulation"):
-        # Run simulation logic with progress bar
-        with st.spinner('Running Simulation...'):
-            progress_bar = st.progress(0)
-            for percent_complete in range(100):
-                time.sleep(0.1)  # Replace with actual simulation steps
-                progress_bar.progress(percent_complete + 1)
-            simulation.run_simulation(rate, {'Day': 1, 'Week': 7, 'Month': 30}[duration], selected_month)
-            gantt_chart = viz.gantt()  # Replace with actual function to generate Gantt chart
-            st.session_state['gantt_chart'] = gantt_chart
-
-    if st.button("Clear Simulation"):
-        simulation.clear_simulation()
-        st.session_state['gantt_chart'] = go.Figure()
-
+    return pivot_df.style.apply(highlight_column, axis=0)
 # Main area
 st.header("Production Schedule")
-schedule_data = generate_calendar_style_schedule_table(simulation.schedule)
-
-# Displaying the schedule in a calendar-like format
-st.dataframe(schedule_data.style.apply(lambda x: ['background-color: lightgreen' if v != 0 else '' for v in x], axis=1))
-
-# Display Gantt Chart
-st.header("Gantt Chart Visualization")
-if 'gantt_chart' in st.session_state:
-    st.plotly_chart(st.session_state['gantt_chart'])
-
-# Additional enhancements and functionalities can be added as needed
+schedule_data = generate_calendar_style_schedule_table(simulation.schedule, selected_month)
+st.dataframe(schedule_data)
