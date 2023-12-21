@@ -1,24 +1,33 @@
+import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-def veh_graphs():
-    # Load your data
-    df = pd.read_csv('logs/assembly.csv')
+# Load data
+df = pd.read_csv('logs/assembly.csv')
+df['Duration'] = round(df['Timestamp_end'] - df['Timestamp_start'], 2)
 
-    # Calculate duration for the scatter plot
-    df['Duration'] = round(df['Timestamp_end'] - df['Timestamp_start'], 2)
-    station_count = df['Station'].value_counts()
+st.title("Simulation Vehicle Data")
 
-    # Create station bar chart with updated y-axis label and title
-    station_bar_chart = px.bar(station_count, labels={'index': 'Station', 'value': 'Assembly Count'})
-    station_bar_chart.update_layout(title='Station Assembly Count', yaxis_title='Assembly Count')
+# Sidebar for vehicle selection
+st.sidebar.header("Vehicle Information")
+vehicle = st.sidebar.selectbox("Select Vehicle", df['Vehicle'].unique())
+filtered_df = df[df['Vehicle'] == vehicle]
 
-    # Create assembly duration scatter plot with title
-    assembly_duration_scatter_plot = px.scatter(df, x='Station', y='Duration', color='Assembly')
-    assembly_duration_scatter_plot.update_layout(title='Assembly Duration per Station')
+# Station Utilization Bar Chart
+station_count = filtered_df['Station'].value_counts()
+fig1 = px.bar(station_count, labels={'index': 'Station', 'value': 'Assembly Count'})
+fig1.update_layout(title='Station Assembly Count', yaxis_title='Assembly Count', width=1000)
+st.plotly_chart(fig1)
 
-    # Create workflow time series line chart with title
-    workflow_time_series = px.line(df, x='Timestamp_start', y='Assembly')
-    workflow_time_series.update_layout(title='Workflow Time Series')
+# Assembly Duration Scatter Plot
+fig2 = px.scatter(filtered_df, x='Station', y='Duration', color='Assembly')
+fig2.update_layout(title='Assembly Duration per Station', width=1000)
+st.plotly_chart(fig2)
 
-    return station_bar_chart, assembly_duration_scatter_plot, workflow_time_series
+# Workflow Time Series
+fig3 = px.line(filtered_df, x='Timestamp_start', y='Assembly')
+fig3.update_layout(title='Workflow Time Series', width=1000)
+st.plotly_chart(fig3)
+
+# Data Table
+st.write(filtered_df)
