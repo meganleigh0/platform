@@ -1,3 +1,12 @@
+import streamlit as st
+import pandas as pd
+import plotly.graph_objects as go
+
+# Assuming dataframes are loaded here
+# station_requirements = pd.DataFrame([...])
+# department_requirements = pd.DataFrame([...])
+# schedule = pd.DataFrame([...])
+
 # Hardcoded month order
 month_order = ["January 2024", "February 2024", "March 2024", "April 2024", "May 2024", 
                "June 2024", "July 2024", "August 2024", "September 2024", "October 2024", 
@@ -14,7 +23,6 @@ def calculate_hours(requirements_df, schedule_df, selected_month=None, selected_
     if selected_month:
         filtered_schedule = filtered_schedule[['Program', selected_month]]
     else:
-        # Order columns according to sorted months
         filtered_schedule = filtered_schedule[['Program'] + sort_months(list(schedule_df.columns[2:]))]
 
     if selected_program and selected_program != 'All Programs':
@@ -35,6 +43,14 @@ def calculate_hours(requirements_df, schedule_df, selected_month=None, selected_
             total_hours_program += merged_df[month].sum()
 
     return merged_df, total_hours_vehicle, total_hours_program
+
+# Create Plotly line chart
+def create_line_chart(data, title):
+    fig = go.Figure()
+    for column in sort_months(schedule.columns[2:]):
+        fig.add_trace(go.Scatter(x=data.index, y=data[column], mode='lines', name=column))
+    fig.update_layout(title=title, xaxis_title='Category', yaxis_title='Total Hours', legend_title='Month')
+    return fig
 
 # Streamlit layout
 st.set_page_config(layout="wide")
@@ -62,13 +78,18 @@ with col1:
     if selected_month != 'All Months':
         st.bar_chart(station_hours.groupby('Station')['Total Hours'].sum())
     else:
-        # Plot line chart with sorted months
-        st.line_chart(station_hours.groupby('Station')[sort_months(schedule.columns[2:])].sum())
+        station_line_chart = create_line_chart(station_hours.groupby('Station').sum(), "Station Hours Over Months")
+        st.plotly_chart(station_line_chart)
 
 with col2:
     st.subheader("Department Hours")
     if selected_month != 'All Months':
         st.bar_chart(department_hours.groupby('DepartmentID')['Total Hours'].sum())
     else:
-        # Plot line chart with sorted months
-        st.line_chart(department_hours.groupby('DepartmentID')[sort_months(schedule.columns[2:])].sum())
+        department_line_chart = create_line_chart(department_hours.groupby('DepartmentID').sum(), "Department Hours Over Months")
+        st.plotly_chart(department_line_chart)
+
+# Display total hours for a vehicle and the program
+if selected_month != 'All Months' and selected_program != 'All Programs':
+    st.write(f"Total Hours for One Vehicle in {selected_program}: {station_vehicle_hours} (Station), {department_vehicle_hours} (Department)")
+    st.write(f"Total Hours for Program {selected_program} in {selected_month}: {station_program_hours} (Station), {department_program_hours} (Department)")
