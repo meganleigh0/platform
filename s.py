@@ -1,34 +1,3 @@
-# Load data
-df = pd.read_csv('logs/assembly.csv')
-df['Duration'] = round(df['Timestamp_end'] - df['Timestamp_start'], 2)
-
-# Page title
-st.title("Vehicle Assembly Data Visualization")
-
-# Sidebar for vehicle selection
-st.sidebar.header("Vehicle Selection")
-vehicle = st.sidebar.selectbox("Choose a Vehicle", df['Vehicle'].unique())
-filtered_df = df[df['Vehicle'] == vehicle]
-
-# Station Utilization Bar Chart
-st.subheader("Station Utilization Overview")
-station_count = filtered_df['Station'].value_counts()
-fig1 = px.bar(station_count, labels={'index': 'Station', 'value': 'Assembly Count'})
-fig1.update_layout(title='Station Assembly Count', yaxis_title='Assembly Count', width=1000)
-st.plotly_chart(fig1)
-
-# Assembly Duration Scatter Plot
-st.subheader("Assembly Duration Analysis")
-fig2 = px.scatter(filtered_df, x='Station', y='Duration', color='Assembly')
-fig2.update_layout(title='Assembly Duration per Station', width=1000)
-st.plotly_chart(fig2)
-
-# Workflow Time Series
-st.subheader("Workflow Time Series")
-fig3 = px.line(filtered_df, x='Timestamp_start', y='Assembly')
-fig3.update_layout(title='Workflow Time Series', width=1000)
-st.plotly_chart(fig3)
-
-# Data Table
-st.subheader("Detailed Data View")
-st.write(filtered_df)
+1. Created a new branch from the main to develop a demo application using Streamlit.
+2. Developed a Production Schedule Simulator dashboard in Streamlit, showcasing manufacturing model capabilities. This includes simulation settings for selecting a production month, duration, and rate. The simulator displays a Gantt chart of the simulation and the plant utilization rate. The plant utilization rate chart, designed in Plotly, presents the average utilization of heads by plant, followed by departmental breakdowns. Additionally, a vehicle view has been introduced to provide per-vehicle information in the simulation, displaying station utilization charts, assembly time series, and a table with operation start and end times.
+3. Created a Schedule Requirements page that displays the master production schedule's needs. Based on the model of manufacturing operations (MoM) and production quantities for each program and product, it calculates and shows labor requirements by department and forecasts labor needs by station.
