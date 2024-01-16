@@ -7,7 +7,7 @@ import plotly.express as px
 # Replace this with your actual function
 def calc_dep_requirements(month, std):
     # This should return a dictionary with department requirements based on the month and std
-    return {'dept1': 120, 'dept2': 150}  # example return value
+    return {'dept1': np.random.normal(120, std), 'dept2': np.random.normal(150, std)}  # example return value
 
 # Dummy DataFrame for department data
 # Replace this with your actual DataFrame
@@ -24,24 +24,24 @@ st.title("Department Dashboard")
 list_of_months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 selected_month = st.selectbox('Select Month', list_of_months)
 std = st.number_input('Enter Standard Deviation', min_value=0.0, value=1.0)
+simulations = st.number_input('Enter Number of Simulations', min_value=1, value=100)
 
-if st.button('Calculate Requirements'):
-    department_reqs = calc_dep_requirements(selected_month, std)
-    
-    # Convert department_reqs dictionary to DataFrame and merge
-    reqs_df = pd.DataFrame(list(department_reqs.items()), columns=['DepID', 'Hours'])
-    combined_df = pd.merge(df_department_data, reqs_df, on='DepID')
-    combined_df['Head Count Required'] = combined_df['Hours'] / 160
+# Run Monte Carlo Simulations
+if st.button('Run Simulations'):
+    sim_results = {dep: [] for dep in df_department_data['DepID']}
 
-    # Display Data Table
-    st.write(combined_df)
+    for _ in range(simulations):
+        sim_reqs = calc_dep_requirements(selected_month, std)
+        for dep, hours in sim_reqs.items():
+            sim_results[dep].append(hours)
 
     # Visualization
-    fig_efficiency = px.bar(combined_df, x='Name', y='Efficiency', color='Efficiency', title="Department Efficiency")
-    st.plotly_chart(fig_efficiency)
+    for dep, hours in sim_results.items():
+        department_name = df_department_data[df_department_data['DepID'] == dep]['Name'].iloc[0]
+        fig = px.histogram(hours, title=f"Hours Distribution for {department_name}", labels={'value': 'Hours'}, nbins=30)
+        st.plotly_chart(fig)
 
-    fig_requirements = px.bar(combined_df, x='Name', y='Hours', color='Hours', title="Department Requirements (Hours)")
-    st.plotly_chart(fig_requirements)
-
-    fig_head_count = px.bar(combined_df, x='Name', y='Head Count Required', color='Head Count Required', title="Head Count Required")
-    st.plotly_chart(fig_head_count)
+        # Calculating Head Count from Hours
+        head_counts = [np.ceil(h / 160) for h in hours]
+        fig_head_count = px.histogram(head_counts, title=f"Head Count Distribution for {department_name}", labels={'value': 'Head Count'}, nbins=30)
+        st.plotly_chart(fig_head_count)
