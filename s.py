@@ -1,29 +1,11 @@
-import plotly.graph_objects as go
-
-# Assuming plant_summary is your DataFrame
-plant_fig = go.Figure(data=[
-    go.Bar(
-        name='Heads',
-        x=plant_summary['Plant'],
-        y=plant_summary['DirectHeads'],
-        text=plant_summary['DirectHeads'],  # Add the text values for each bar
-        textposition='outside'  # Position the text above the bars
-    ),
-    go.Bar(
-        name='Heads Required',
-        x=plant_summary['Plant'],
-        y=plant_summary['Heads Required'],
-        text=plant_summary['Heads Required'],  # Add the text values for each bar
-        textposition='outside'  # Position the text above the bars
-    )
-])
-
-# Update layout for grouped bar mode and title
-plant_fig.update_layout(
-    barmode='group',
-    title="Heads vs Heads Required by Plant"
-)
-
-# Display plot (streamlit)
-st.markdown("### Heads Required by Plant")
-st.plotly_chart(plant_fig)
+    # Add annotations for each bar
+        for index, row in department_utilization.iterrows():
+            fig.add_annotation(
+                x=row['Department'],
+                y=row['Utilization'],
+                text=f"{row['Utilization']:.1f}%",  # Format the utilization value and append a percent sign
+                showarrow=False,
+                row=2,
+                col=i,
+                yshift=10  # Adjust this value to position the annotation above the bar
+            )
