@@ -1,10 +1,12 @@
-    # Total heads and heads required
-    total_heads = df_department_data['Heads'].sum()
-    total_heads_required = plant_needs['Heads Required'].sum()
+ # Gauge chart for overall heads vs heads required
+    fig_gauge = go.Figure(go.Indicator(
+        mode = "number+gauge+delta",
+        value = total_heads_required,
+        delta = {'reference': total_heads},
+        gauge = {'axis': {'range': [None, max(total_heads, total_heads_required)]},
+                 'steps' : [{'range': [0, total_heads], 'color': "lightgreen"},
+                            {'range': [total_heads, total_heads_required], 'color': "red"}],
+                 'threshold' : {'line': {'color': "blue", 'width': 4}, 'thickness': 0.75, 'value': total_heads}}))
 
-    # Donut chart for total heads vs heads required
-    fig_donut = px.pie(names=["Total Heads", "Total Heads Required"], 
-                       values=[total_heads, total_heads_required], 
-                       hole=0.4, 
-                       title="Overall Heads vs Heads Required")
-    st.plotly_chart(fig_donut)
+    fig_gauge.update_layout(title = 'Comparison of Total Heads Available vs Heads Required')
+    st.plotly_chart(fig_gauge)
