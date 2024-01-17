@@ -1,16 +1,33 @@
+# Create a custom layout with shapes for curved bars
+    layout = {
+        'shapes': [
+            {
+                'type': 'path',
+                'path': f'M {0.15 * np.pi} {0.5} L {-0.15 * np.pi} {0.5} L {0.15 * np.pi} {0.3} Z',
+                'fillcolor': gauge_color,
+                'line': {'color': gauge_color}
+            },
+            {
+                'type': 'path',
+                'path': f'M {0.85 * np.pi} {0.5} L {1.15 * np.pi} {0.5} L {0.85 * np.pi} {0.3} Z',
+                'fillcolor': 'lightgray',
+                'line': {'color': 'lightgray'}
+            }
+        ],
+        'xaxis': {'showticklabels': False, 'showgrid': False, 'zeroline': False},
+        'yaxis': {'showticklabels': False, 'showgrid': False, 'zeroline': False},
+        'plot_bgcolor': 'rgba(0,0,0,0)',
+        'paper_bgcolor': 'rgba(0,0,0,0)'
+    }
+
     fig_gauge = go.Figure(go.Indicator(
         mode = "number+delta",
         value = total_heads_required,
         delta = {'reference': total_heads_used_departments},
         gauge = {'shape': 'angular'},
-        domain = {'x': [0, 1], 'y': [0, 1]},
-        title = {'text': f'Total Heads Required vs Available ({gauge_color})'},
-        gauge_axis = {
-            'axis': {'range': [0, max(total_heads_used_departments, total_heads_required)]},
-            'bar': {'color': gauge_color},
-            'steps' : [{'range': [0, total_heads_used_departments], 'color': "lightgray"}],
-            'threshold' : {'line': {'color': "blue", 'width': 4}, 'thickness': 0.75, 'value': total_heads_used_departments}
-        }
+        domain = {'x': [0, 1], 'y': [0, 1]}
     ))
 
+    fig_gauge.update_layout(layout)
+    fig_gauge.update_layout(title = 'Comparison of Total Heads Available vs Heads Required (Used Departments)')
     st.plotly_chart(fig_gauge)
