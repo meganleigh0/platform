@@ -1,33 +1,37 @@
+# Calculate the total heads required and total heads available
+total_heads_required = plant_summary['Heads Required'].sum()
+total_heads_available = plant_summary['Heads'].sum()
 
-    # Create a list of heads required for used departments
-    heads_required = [np.ceil(np.mean([h / 160 for h in sim_results[dep]])) if dep in sim_results else 0 for dep in df_department_data['DepID']]
+# Calculate the delta
+delta = total_heads_available - total_heads_required
 
-    # Create a list of heads available for used departments
-    heads_available = df_department_data[df_department_data['DepID'].isin(used_departments)]['Heads'].tolist()
+# Determine the color based on delta (shortfall or surplus)
+if delta >= 0:
+    color = 'green'  # Surplus, color it green
+else:
+    color = 'red'    # Shortfall, color it red
 
-    # Create a gauge chart based on heads comparison
-    fig_gauge = go.Figure()
+# Create the gauge chart
+fig = go.Figure(go.Indicator(
+    mode="gauge+number+delta",
+    value=total_heads_available,
+    delta={"reference": total_heads_required},
+    gauge={
+        "axis": {"range": [None, max(total_heads_required, total_heads_available)]},
+        "threshold": {
+            "line": {"color": color, "width": 4},
+            "thickness": 0.75,
+            "value": total_heads_required
+        },
+        "steps": [
+            {"range": [0, total_heads_required], "color": "red"},
+            {"range": [total_heads_required, total_heads_available], "color": "green"}
+        ],
+        "bar": {"color": color}
+    },
+))
 
-    # Add a bullet chart trace for the gauge
-    fig_gauge.add_trace(go.Indicator(
-        mode="number+gauge+delta",
-        value=sum(heads_required),
-        delta={'reference': sum(heads_available)},
-        domain={'x': [0, 1], 'y': [0.2, 0.8]},
-        title={'text': "Heads Required vs Available"},
-        gauge={
-            'axis': {'range': [0, max(sum(heads_available), sum(heads_required))]},
-            'bar': {'color': "lightgray"},
-            'steps': [
-                {'range': [0, sum(heads_available)], 'color': "green"},
-                {'range': [sum(heads_available), sum(heads_required)], 'color': "red"}
-            ],
-            'threshold': {
-                'line': {'color': "blue", 'width': 4},
-                'thickness': 0.75,
-                'value': sum(heads_available)
-            }
-        }
-    ))
+fig.update_layout(title="Total Heads Required vs Total Heads Available",
+                  showlegend=False)
 
-    st.plotly_chart(fig_gauge)
+st.plotly_chart(fig)
