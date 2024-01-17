@@ -1,33 +1,18 @@
-# Create a custom layout with shapes for curved bars
-    layout = {
-        'shapes': [
-            {
-                'type': 'path',
-                'path': f'M {0.15 * np.pi} {0.5} L {-0.15 * np.pi} {0.5} L {0.15 * np.pi} {0.3} Z',
-                'fillcolor': gauge_color,
-                'line': {'color': gauge_color}
-            },
-            {
-                'type': 'path',
-                'path': f'M {0.85 * np.pi} {0.5} L {1.15 * np.pi} {0.5} L {0.85 * np.pi} {0.3} Z',
-                'fillcolor': 'lightgray',
-                'line': {'color': 'lightgray'}
-            }
-        ],
-        'xaxis': {'showticklabels': False, 'showgrid': False, 'zeroline': False},
-        'yaxis': {'showticklabels': False, 'showgrid': False, 'zeroline': False},
-        'plot_bgcolor': 'rgba(0,0,0,0)',
-        'paper_bgcolor': 'rgba(0,0,0,0)'
-    }
+  # Create a list of heads required for used departments
+    heads_required = [np.ceil(np.mean([h / 160 for h in sim_results[dep]])) if dep in sim_results else 0 for dep in df_department_data['DepID']]
 
-    fig_gauge = go.Figure(go.Indicator(
-        mode = "number+delta",
-        value = total_heads_required,
-        delta = {'reference': total_heads_used_departments},
-        gauge = {'shape': 'angular'},
-        domain = {'x': [0, 1], 'y': [0, 1]}
-    ))
+    # Create a list of heads available for used departments
+    heads_available = df_department_data[df_department_data['DepID'].isin(used_departments)]['Heads'].tolist()
 
-    fig_gauge.update_layout(layout)
-    fig_gauge.update_layout(title = 'Comparison of Total Heads Available vs Heads Required (Used Departments)')
+    # Create a gauge chart based on heads comparison
+    fig_gauge = ff.create_bullet(
+        orientation="h",
+        titles=["Heads Required vs Available"],
+        markers=total_heads_required,
+        measures=heads_available,
+        ranges=[total_heads_available],
+        width=400,
+        height=100
+    )
+
     st.plotly_chart(fig_gauge)
