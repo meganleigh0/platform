@@ -1,23 +1,3 @@
-import streamlit as st
-import pandas as pd
-import numpy as np
-import plotly.graph_objects as go
-
-# Dummy function for calc_dep_requirements
-# Replace this with your actual function
-def calc_dep_requirements(month, std):
-    return {'dept1': np.random.normal(120, std), 'dept2': np.random.normal(150, std), 'dept3': []}  # example return value
-
-# Dummy DataFrame for department data
-# Replace this with your actual DataFrame
-df_department_data = pd.DataFrame({
-    'DepID': ['dept1', 'dept2', 'dept3'],
-    'Name': ['Manufacturing', 'Design', 'Logistics'],
-    'Heads': [10, 12, 8],
-    'Plant': ['A', 'B', 'A'],
-    'Efficiency': [0.8, 0.7, 0.6]
-})
-
 # UI Elements
 st.title("Department Dashboard")
 
@@ -47,10 +27,11 @@ if st.button('Run Simulations'):
                 sim_results[dep].extend(hours)
         progress_bar.progress((i + 1) / simulations)
 
-    # Plant aggregation
+    # Plant aggregation for used departments
     st.markdown("### Heads Required by Plant")
-    plant_needs = df_department_data.copy()
-    plant_needs['Heads Required'] = plant_needs['DepID'].apply(lambda x: np.mean([np.ceil(h / 160) for h in sim_results[x]]) if x in sim_results and sim_results[x] else 0)
+    used_departments = {dep: res for dep, res in sim_results.items() if res}  # Filter out unused departments
+    plant_needs = df_department_data[df_department_data['DepID'].isin(used_departments)].copy()
+    plant_needs['Heads Required'] = plant_needs['DepID'].apply(lambda x: np.ceil(np.mean([h / 160 for h in sim_results[x]])) if x in sim_results else 0)
     plant_summary = plant_needs.groupby('Plant').agg({'Heads': 'sum', 'Heads Required': 'sum'}).reset_index()
 
     # Visualize plant needs
@@ -61,19 +42,18 @@ if st.button('Run Simulations'):
     fig.update_layout(barmode='group', title="Heads vs Heads Required by Plant")
     st.plotly_chart(fig)
 
-    # Visualization and Summary for each department used in the simulation
+    # Visualization and Summary for each used department
     st.markdown("### Department-wise Details")
-    for dep, hours in sim_results.items():
-        if hours:  # Only consider departments with hours
-            department_info = df_department_data[df_department_data['DepID'] == dep].iloc[0]
-            avg_heads_required = np.mean([np.ceil(h / 160) for h in hours])
-            fig = go.Figure(data=[
-                go.Histogram(x=hours, name='Hours', marker_color='#FFA07A', opacity=0.6)
-            ])
-            fig.update_layout(title_text=f"Hours Distribution for {department_info['Name']}")
-            st.plotly_chart(fig)
+    for dep, hours in used_departments.items():
+        department_info = df_department_data[df_department_data['DepID'] == dep].iloc[0]
+        avg_heads_required = np.mean([np.ceil(h / 160) for h in hours])
+        fig = go.Figure(data=[
+            go.Histogram(x=hours, name='Hours', marker_color='#FFA07A', opacity=0.6)
+        ])
+        fig.update_layout(title_text=f"Hours Distribution for {department_info['Name']}")
+        st.plotly_chart(fig)
 
-            shortage = avg_heads_required > department_info['Heads']
-            color = "red" if shortage else "green"
-            st.markdown(f"**{department_info['Name']} (DepID: {dep}):** {int(avg_heads_required)} heads required", unsafe_allow_html=True)
-            st.markdown(f"<span style='color: {color};'>{'Shortage' if shortage else 'Sufficient'}</span>", unsafe_allow_html=True)
+        shortage = avg_heads_required > department_info['Heads']
+        color = "red" if shortage else "green"
+        st.markdown(f"**{department_info['Name']} (DepID: {dep}):** {int(avg_heads_required)} heads required", unsafe_allow_html=True)
+        st.markdown(f"<span style='color: {color};'>{'Shortage' if shortage else 'Sufficient'}</span>", unsafe_allow_html=True)
