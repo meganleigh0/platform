@@ -12,9 +12,10 @@ def calc_dep_requirements(month, std):
 # Replace this with your actual DataFrame
 df_department_data = pd.DataFrame({
     'DepID': ['dept1', 'dept2'],
+    'Name': ['Manufacturing', 'Design'],
     'Heads': [10, 12],
-    'Efficiency': [0.8, 0.7],
-    'Name': ['Manufacturing', 'Design']
+    'Plant': ['A', 'B'],
+    'Efficiency': [0.8, 0.7]
 })
 
 # UI Elements
@@ -22,11 +23,12 @@ st.title("Department Dashboard")
 
 # Display Department Information Table
 st.markdown("### Department Information")
-department_table = st.empty()  # Placeholder for the department table
-
-# Initialize table styling
-def style_table(df):
-    return df.style.apply(lambda x: ['background: red' if v > x['Heads'] else 'background: green' for v in x['Average Heads Required']], axis=1)
+st.dataframe(df_department_data.style.set_properties(**{
+    'background-color': '#f4f4f2',
+    'color': '#0a3d62',
+    'border-color': 'white',
+    'text-align': 'center'
+}))
 
 # Input widgets
 list_of_months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
@@ -45,10 +47,13 @@ if st.button('Run Simulations'):
         progress_bar.progress((i + 1) / simulations)
 
     # Update Department Data with Simulation Results
-    df_department_data['Average Heads Required'] = df_department_data['DepID'].apply(
+    df_department_data['Heads Required'] = df_department_data['DepID'].apply(
         lambda dep: np.mean([np.ceil(h / 160) for h in sim_results[dep]]) if dep in sim_results else 0
     )
 
+    # Aggregate heads by plant
+    plant_agg = df_department_data.groupby('Plant').agg({'Heads': 'sum', 'Heads Required': 'sum'}).reset_index()
+    
     # Visualization and Summary
     for dep, hours in sim_results.items():
         department_info = df_department_data[df_department_data['DepID'] == dep].iloc[0]
@@ -59,6 +64,10 @@ if st.button('Run Simulations'):
         fig.update_layout(title_text=f"Distributions for {department_info['Name']}", barmode='overlay')
         st.plotly_chart(fig)
 
-    # Style and Display the Updated Department Table
-    styled_df = style_table(df_department_data)
-    department_table.dataframe(styled_df)
+    # Display Updated Department Table
+    st.markdown("### Updated Department Information")
+    st.dataframe(df_department_data.style.apply(lambda x: ['background-color: red' if x['Heads Required'] > x['Heads'] else 'background-color: green' for _ in x], axis=1))
+
+    # Display Plant Aggregation Table
+    st.markdown("### Plant-wise Heads Requirement")
+    st.dataframe(plant_agg.style.apply(lambda x: ['background-color: red' if x['Heads Required'] > x['Heads'] else 'background-color: green' for _ in x], axis=1))
