@@ -47,13 +47,13 @@ if st.button('Run Simulations'):
         lambda dep: np.mean([np.ceil(h / 160) for h in sim_results[dep]]) if dep in sim_results else None
     )
 
-    # Style the DataFrame
-    def highlight_red(val):
-        color = 'red' if val > df_department_data.loc[df_department_data['DepID'] == val.name, 'Heads'].iloc[0] else 'lawngreen'
-        return f'color: {color}'
+    # Function to highlight cells
+    def highlight_red(row):
+        color = 'red' if row['Average Heads Required'] > row['Heads'] else 'lawngreen'
+        return ['background-color: black', f'color: {color}', 'background-color: black', 'color: lawngreen', 'color: lawngreen']
 
-    styled_df = df_department_data.style.applymap(highlight_red, subset=['Average Heads Required'])
-    styled_df = styled_df.set_properties(**{'background-color': 'black', 'border-color': 'white'})
+    # Apply the styling
+    styled_df = df_department_data.style.apply(highlight_red, axis=1)
 
     # Update the table with the new data
     department_table.dataframe(styled_df)
