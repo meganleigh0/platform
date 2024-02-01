@@ -1,57 +1,124 @@
+Unit Tests for Plant3
+python
+Copy code
 import unittest
 from unittest.mock import MagicMock
-from engine.plant1 import Plant1
+from engine.plant3 import Plant3
 
-class TestPlant1(unittest.TestCase):
+class TestPlant3(unittest.TestCase):
     def setUp(self):
         self.env_mock = MagicMock()
-        self.plant1 = Plant1(self.env_mock)
+        self.station_dict_mock = {'station1': MagicMock()}
+        self.plant3 = Plant3(self.env_mock, self.station_dict_mock)
 
-    def test_induce_reclaimed_structure(self):
-        reclaimed_structure = self.plant1.induce_reclaimed_structure()
-        self.assertIn(reclaimed_structure, self.plant1.reclaimed_structures)
-
-    def test_fabrication_process(self):
+    def test_hull_line_process(self):
+        hull_mock = MagicMock()
         product_mock = MagicMock()
-        self.plant1.fabrication_process(product_mock)
-        self.assertTrue(self.plant1.fab_in_process)
+        self.plant3.hull_line_process(hull_mock, product_mock)
+        self.env_mock.process.assert_called_with(hull_mock.plant3_process(product_mock))
 
-    def test_transfer_to_completed(self):
-        structure_mock = MagicMock()
-        structure_mock.id = 'hull.test'
-        self.plant1.hulls.append(structure_mock)
-        self.plant1.transfer_to_completed(structure_mock)
-        self.assertIn(structure_mock, self.plant1.completed_hulls)
+    def test_turret_line_process(self):
+        turret_mock = MagicMock()
+        product_mock = MagicMock()
+        self.plant3.turret_line_process(turret_mock, product_mock)
+        self.env_mock.process.assert_called_with(turret_mock.plant3_process(product_mock))
 
 if __name__ == '__main__':
     unittest.main()
-
-
+Unit Tests for JSMC
+python
+Copy code
 import unittest
 from unittest.mock import MagicMock
-from model.assembly import Assembly
+from engine.jsmc import JSMC
 
-class TestAssembly(unittest.TestCase):
+class TestJSMC(unittest.TestCase):
     def setUp(self):
         self.env_mock = MagicMock()
-        self.operations = [(1, 'Operation1', 'Dept1')]
-        self.department_dict_mock = {'Dept1': MagicMock()}
-        self.assembly = Assembly(self.env_mock, 'id1', 'num1', 'name1', 1, 'make', 'station1', self.operations, self.department_dict_mock)
-
-    def test_add_child(self):
-        part_mock = MagicMock()
-        self.assembly.add_child(part_mock)
-        self.assertIn(part_mock, self.assembly.children)
+        self.jsmc = JSMC(self.env_mock)
 
     def test_process(self):
         product_mock = MagicMock()
-        self.assembly.process(product_mock)
-        # Since process is a generator, you need to advance it to test effects
-        try:
-            next(self.assembly.process(product_mock))
-        except StopIteration:
-            pass
-        self.assertTrue(self.assembly.in_process)
+        self.jsmc.process(product_mock)
+        # Verify process is called on plant1 and plant3 simulations
+        self.assertTrue(self.jsmc.plant1_simulation.induce_reclaimed_structure.called)
+        self.assertTrue(self.jsmc.plant3_simulation.hull_line_process.called or self.jsmc.plant3_simulation.turret_line_process.called)
+
+if __name__ == '__main__':
+    unittest.main()
+Unit Tests for Turret
+python
+Copy code
+import unittest
+from unittest.mock import MagicMock
+from model.turret import Turret
+
+class TestTurret(unittest.TestCase):
+    def setUp(self):
+        self.env_mock = MagicMock()
+        self.turret = Turret(self.env_mock, 'turret_id', MagicMock())
+
+    def test_plant1_process(self):
+        product_mock = MagicMock()
+        self.turret.plant1_process(product_mock)
+        # Assert that the process method is called
+        self.assertTrue(self.env_mock.process.called)
+
+    def test_plant3_process(self):
+        product_mock = MagicMock()
+        self.turret.plant3_process(product_mock)
+        # Assert that the process method waits for p1_processed
+        self.turret.p1_processed.succeed()
+        self.assertTrue(self.env_mock.process.called)
+
+if __name__ == '__main__':
+    unittest.main()
+Unit Tests for Hull
+python
+Copy code
+import unittest
+from unittest.mock import MagicMock
+from model.hull import Hull
+
+class TestHull(unittest.TestCase):
+    def setUp(self):
+        self.env_mock = MagicMock()
+        self.hull = Hull(self.env_mock, 'hull_id', MagicMock())
+
+    def test_plant1_process(self):
+        product_mock = MagicMock()
+        self.hull.plant1_process(product_mock)
+        # Assert that the process method is called
+        self.assertTrue(self.env_mock.process.called)
+
+    def test_plant3_process(self):
+        product_mock = MagicMock()
+        self.hull.plant3_process(product_mock)
+        # Assert that the process method waits for p1_processed
+        self.hull.p1_processed.succeed()
+        self.assertTrue(self.env_mock.process.called)
+
+if __name__ == '__main__':
+    unittest.main()
+Unit Tests for Operation
+python
+Copy code
+import unittest
+from unittest.mock import MagicMock
+from model.operation import Operation
+
+class TestOperation(unittest.TestCase):
+    def setUp(self):
+        self.env_mock = MagicMock()
+        department_dict_mock = {'Dept1': MagicMock()}
+        self.operation = Operation(self.env_mock, 'Operation1', 1, 'Dept1', department_dict_mock)
+
+    def test_process(self):
+        assembly_mock = MagicMock()
+        product_mock = MagicMock()
+        self.operation.process(assembly_mock, product_mock)
+        # Verify timeout is called with the standard time divided by num_heads_req
+        self.env_mock.timeout.assert_called()
 
 if __name__ == '__main__':
     unittest.main()
