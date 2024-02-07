@@ -1,16 +1,14 @@
-# 1. Identify unique sets by PlanNo and check for multiple Department occurrences
-unique_plan_sets = df.groupby('PlanNo').filter(lambda x: len(x['Department'].unique()) > 1)
+# Step 1: Identify contiguous blocks of the same PlanNo
+df['block'] = (df['PlanNo'] != df['PlanNo'].shift()).cumsum()
 
-# 2. For PlanNos with multiple Departments, keep only the later sections
-# This involves identifying the last occurrence of each PlanNo group with multiple Departments
-last_occurrences = unique_plan_sets.drop_duplicates(subset=['PlanNo', 'Facility ID'], keep='last')
-plan_no_to_keep = last_occurrences['PlanNo'].unique()
+# Step 2: For PlanNos appearing in more than one block, keep only the rows from the last block
+# This involves finding the last block for each PlanNo and then filtering the DataFrame based on these blocks
+last_blocks = df.groupby('PlanNo')['block'].max().reset_index()
 
-# 3. Keep rows that are either unique by PlanNo or are part of the later sections identified
-filtered_df = pd.concat([
-    df[df['PlanNo'].isin(plan_no_to_keep) == False],  # Unique PlanNos
-    df[df['PlanNo'].isin(last_occurrences['PlanNo'])]  # Later sections of PlanNos with multiple Departments
-]).drop_duplicates().sort_values(by=['PlanNo', 'Facility ID', 'Department'])
+# Filter the original DataFrame to keep rows that are in the last block for their respective PlanNo
+filtered_df_corrected = df[df.apply(lambda x: x['block'] in last_blocks.loc[last_blocks['PlanNo'] == x['PlanNo'], 'block'].values, axis=1)]
 
-filtered_df
-Result
+# Drop the auxiliary 'block' column used for identifying contiguous blocks
+filtered_df_corrected = filtered_df_corrected.drop(columns=['block'])
+
+filtered_df_corrected
