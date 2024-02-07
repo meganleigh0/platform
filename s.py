@@ -1,26 +1,38 @@
 import pandas as pd
 
-# Assuming df is your DataFrame
+# Sample DataFrame for demonstration; replace with your actual data loading
+data = {
+    'MbomID': [1, 2],
+    'PartNumber': ['P1', 'P2'],
+    'Name': ['Part 1', 'Part 2'],
+    'Station': ['S1', 'S2'],
+    'Operations': [
+        [[1.5, 'Op 1', 'Dept 1'], [2, 'Op 2', 'Dept 2']],
+        []  # Assuming empty list for no operations
+    ]
+}
+df = pd.DataFrame(data)
 
-# Correct the function name and implementation
+# Ensuring Operations is a list of lists, or an empty list
+df['Operations'] = df['Operations'].apply(lambda x: x if isinstance(x, list) else [])
+
 def sum_operations(operations):
-    # Check if operations is not empty and is a list
-    if operations and isinstance(operations, list):
-        return sum(op[0] for op in operations if isinstance(op, list) and len(op) > 0 and isinstance(op[0], (int, float)))
-    return 0
+    # Sum only the hours (first element of each sub-array) from operations
+    return sum(op[0] for op in operations if isinstance(op, list) and len(op) > 0 and isinstance(op[0], (int, float)))
 
-# Apply the corrected function
 df['TotalHours'] = df['Operations'].apply(sum_operations)
 
-# Now, let's correct the part for finding the longest operation
 def longest_operation(operations):
-    # Filter out valid operations and find the one with the longest duration
-    valid_operations = [op for op in operations if isinstance(op, list) and len(op) > 0 and isinstance(op[0], (int, float))]
-    if valid_operations:
-        return max(valid_operations, key=lambda x: x[0])
-    return []
+    # Find the operation with the maximum hours
+    if not operations or not isinstance(operations, list):
+        return []
+    # Filter to ensure we only process correctly structured operations
+    filtered_ops = [op for op in operations if isinstance(op, list) and len(op) > 3 and isinstance(op[0], (int, float))]
+    if not filtered_ops:
+        return []
+    return max(filtered_ops, key=lambda x: x[0])
 
 df['LongestOperation'] = df['Operations'].apply(longest_operation)
 
-# Display the modified DataFrame
+# Show the updated DataFrame
 print(df[['MbomID', 'PartNumber', 'Station', 'TotalHours', 'LongestOperation']])
