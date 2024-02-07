@@ -1,23 +1,27 @@
-import plotly.express as px
+def flatten_operations_by_station(df, station):
+    """
+    Flatten all operations for a given station into a single list.
 
-# Ensure you have Plotly installed, or install it via pip install plotly
+    Parameters:
+    - df: DataFrame containing your data.
+    - station: The station for which operations should be flattened.
 
-# Group by Station and PartNumber for the sum of TotalHours
-grouped_data = df.groupby(['Station', 'PartNumber'])['TotalHours'].sum().reset_index()
+    Returns:
+    - A flattened list of all operations for the given station.
+    """
+    # Filter the DataFrame by the specified station
+    filtered_df = df[df['Station'] == station]
 
-# Creating the bar chart with Plotly
-fig = px.bar(grouped_data, 
-             x='Station', 
-             y='TotalHours', 
-             color='PartNumber', 
-             barmode='group',
-             text='TotalHours',
-             hover_data=['Station', 'PartNumber', 'TotalHours'],
-             labels={'TotalHours': 'Total Hours', 'Station': 'Station', 'PartNumber': 'Assembly'},
-             title='Total Hours of Operations by Station and Assembly')
+    # Extract the operations column and flatten it
+    operations_list = filtered_df['Operations'].tolist()
+    flattened_operations = [op for sublist in operations_list for op in sublist if isinstance(sublist, list)]
 
-fig.update_traces(texttemplate='%{text:.2s}', textposition='outside')
-fig.update_layout(uniformtext_minsize=8, uniformtext_mode='hide')
-fig.update_layout(xaxis_tickangle=-45)
+    return flattened_operations
 
-fig.show()
+# Sample usage:
+station = 'S1'  # Example station
+flattened_operations = flatten_operations_by_station(df, station)
+
+# Display the flattened list of operations
+print(f"Flattened operations for station {station}:")
+print(flattened_operations)
