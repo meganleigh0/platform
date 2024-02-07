@@ -1,27 +1,16 @@
-def flatten_operations_by_station(df, station):
-    """
-    Flatten all operations for a given station into a single list.
+# 1. Identify unique sets by PlanNo and check for multiple Department occurrences
+unique_plan_sets = df.groupby('PlanNo').filter(lambda x: len(x['Department'].unique()) > 1)
 
-    Parameters:
-    - df: DataFrame containing your data.
-    - station: The station for which operations should be flattened.
+# 2. For PlanNos with multiple Departments, keep only the later sections
+# This involves identifying the last occurrence of each PlanNo group with multiple Departments
+last_occurrences = unique_plan_sets.drop_duplicates(subset=['PlanNo', 'Facility ID'], keep='last')
+plan_no_to_keep = last_occurrences['PlanNo'].unique()
 
-    Returns:
-    - A flattened list of all operations for the given station.
-    """
-    # Filter the DataFrame by the specified station
-    filtered_df = df[df['Station'] == station]
+# 3. Keep rows that are either unique by PlanNo or are part of the later sections identified
+filtered_df = pd.concat([
+    df[df['PlanNo'].isin(plan_no_to_keep) == False],  # Unique PlanNos
+    df[df['PlanNo'].isin(last_occurrences['PlanNo'])]  # Later sections of PlanNos with multiple Departments
+]).drop_duplicates().sort_values(by=['PlanNo', 'Facility ID', 'Department'])
 
-    # Extract the operations column and flatten it
-    operations_list = filtered_df['Operations'].tolist()
-    flattened_operations = [op for sublist in operations_list for op in sublist if isinstance(sublist, list)]
-
-    return flattened_operations
-
-# Sample usage:
-station = 'S1'  # Example station
-flattened_operations = flatten_operations_by_station(df, station)
-
-# Display the flattened list of operations
-print(f"Flattened operations for station {station}:")
-print(flattened_operations)
+filtered_df
+Result
