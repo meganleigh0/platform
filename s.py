@@ -1,41 +1,26 @@
 import pandas as pd
 
-# Sample DataFrame creation - replace this with your actual DataFrame loading method
-data = {
-    'MbomID': [1, 2],
-    'PartNumber': ['P1', 'P2'],
-    'Name': ['Part 1', 'Part 2'],
-    'Station': ['S1', 'S2'],
-    'Operations': [
-        [[1.5, 'Op 1', 'Dept 1'], [2, 'Op 2', 'Dept 2']],
-        0  # Assuming 0 means no operations for simplicity
-    ]
-}
-df = pd.DataFrame(data)
+# Assuming df is your DataFrame
 
-# Ensure Operations is a list of lists, not 0, for consistency
-df['Operations'] = df['Operations'].apply(lambda x: x if x != 0 else [])
-
-# Sum of operations by Station and Assembly
+# Correct the function name and implementation
 def sum_operations(operations):
-    return sum(op[0] for op in operations)
+    # Check if operations is not empty and is a list
+    if operations and isinstance(operations, list):
+        return sum(op[0] for op in operations if isinstance(op, list) and len(op) > 0 and isinstance(op[0], (int, float)))
+    return 0
 
+# Apply the corrected function
 df['TotalHours'] = df['Operations'].apply(sum_operations)
-sum_by_station_assembly = df.groupby(['Station', 'PartNumber'])['TotalHours'].sum().reset_index()
 
-# Longest operation
+# Now, let's correct the part for finding the longest operation
 def longest_operation(operations):
-    if operations:
-        return max(operations, key=lambda x: x[0])
+    # Filter out valid operations and find the one with the longest duration
+    valid_operations = [op for op in operations if isinstance(op, list) and len(op) > 0 and isinstance(op[0], (int, float))]
+    if valid_operations:
+        return max(valid_operations, key=lambda x: x[0])
     return []
 
 df['LongestOperation'] = df['Operations'].apply(longest_operation)
 
-# For parallelization analysis, you might want to explore operations within each station and assembly
-# that have significant hours and see if they belong to different departments, indicating potential for parallel work.
-
-print("Sum of Operations by Station and Assembly:")
-print(sum_by_station_assembly)
-
-print("\nDataFrame with Longest Operation:")
-print(df[['MbomID', 'PartNumber', 'Station', 'LongestOperation']])
+# Display the modified DataFrame
+print(df[['MbomID', 'PartNumber', 'Station', 'TotalHours', 'LongestOperation']])
