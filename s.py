@@ -1,14 +1,9 @@
+# Group by station and assembly description and aggregate
+grouped_df = df.groupby(['station', 'assembly_description']).agg(num_operations=('index', 'count'), total_hours=('hours', 'sum')).reset_index()
 
-# Function to create DataFrame from operations list with additional columns
-def create_ops_df(ops_list, index, station, mbomID, description):
-    ops_df = pd.DataFrame(ops_list, columns=['hours', 'description', 'department'])
-    ops_df['index'] = index
-    ops_df['station'] = station
-    ops_df['mbomID'] = mbomID
-    ops_df['description'] = description
-    return ops_df
-
-# Concatenate DataFrames for each row
-df = pd.concat([create_ops_df(row['operations'], index, row['station'], row['mbomID'], row['desc']) for index, row in df.iterrows()], ignore_index=True)
-
-print(df)
+# Plot using Plotly
+fig = px.bar(grouped_df, x='station', y='num_operations', color='assembly_description', hover_data=['total_hours'],
+             labels={'num_operations': 'Number of Operations', 'total_hours': 'Total Hours'},
+             title='Number of Operations by Station and Assembly Description',
+             barmode='group')
+fig.show()
