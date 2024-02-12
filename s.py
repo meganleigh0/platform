@@ -1,18 +1,13 @@
-import pandas as pd
+df = pd.DataFrame(data)
 
-
-# Function to explode operations array into separate rows
-def explode_ops(row):
+# Function to flatten operations list
+def flatten_ops(row):
     return pd.DataFrame(row['operations'], columns=['hours', 'description', 'department'])
 
-# Explode operations
-df = df.explode('operations').reset_index(drop=True)
+# Apply the function to each row
+df = df.join(df.apply(flatten_ops, axis=1))
 
-# Group by station and assembly, and aggregate operations
-result = df.groupby(['station', 'desc', 'mbomID', 'assemblyID']).agg({
-    'operations': lambda x: x.tolist(),
-    'total_ops': 'sum',
-    'total_hours': 'sum'
-}).reset_index()
+# Drop the original operations column
+df.drop(columns=['operations'], inplace=True)
 
-print(result)
+print(df)
