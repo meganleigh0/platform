@@ -1,62 +1,65 @@
-import pandas as pd
-import numpy as np
-import re
-from anytree import Node, RenderTree
-import logging
+class MBOMPipeline:
+    def __init__(self, variant):
+        self.variant = variant
+        self.df = None
+        self.nodes = None
 
-# Setup basic logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+    def run(self):
+        self.load_mbom()
+        self.preprocess()
+        self.standardize()
+        self.structure()
+        return self.df
 
-def process_mbom(var):
-    logging.info("Starting MBOM processing pipeline")
+    def load_mbom(self):
+        # Implementation of load_mbom
+        pass
 
-    # Load file
-    logging.info("Loading MBOM file")
-    df_lim = load_mbom(var)[1]
-    logging.info("MBOM file loaded successfully")
+    def preprocess(self):
+        # Combine preprocessing steps into a single method
+        self.clean_description()
+        self.remove_unwanted_rows()
+        self.set_ids()
 
-    # Assign unique id to each line
-    logging.info("Assigning unique IDs")
-    df_lim = set_ids(df_lim)
-    logging.info("Unique IDs assigned")
+    def clean_description(self):
+        # Implementation
+        pass
 
-    # Assign station point
-    logging.info("Assigning station points")
-    df_lim = assign_station_point(df_lim)
-    logging.info("Station points assigned")
+    def remove_unwanted_rows(self):
+        # Implementation
+        pass
 
-    # Search standards
-    logging.info("Searching for standards")
-    mbom_ops = search_swh(df_lim)
-    logging.info("Standards search completed")
+    def set_ids(self):
+        # Implementation
+        pass
 
-    # Map standards to assemblies
-    logging.info("Mapping standards to assemblies")
-    df_lim['Operations'] = df_lim['mbomID'].map(mbom_ops).fillna(0)
-    logging.info("Standards mapped to assemblies")
+    def standardize(self):
+        # Combine standardization steps
+        self.assign_station_point()
+        self.search_swh()
 
-    # Translate to tree structure
-    logging.info("Building tree structure")
-    nodes = build_tree(df_lim)
-    logging.info("Tree structure built")
+    def assign_station_point(self):
+        # Implementation
+        pass
 
-    # Cascade station definitions
-    logging.info("Propagating station definitions")
-    propagate_station(nodes[100001])
-    logging.info("Station definitions propagated")
+    def search_swh(self):
+        # Implementation
+        pass
 
-    # Convert to dataframe
-    logging.info("Converting tree to DataFrame")
-    df_lim = tree_to_df(nodes)
-    logging.info("Conversion to DataFrame completed")
+    def structure(self):
+        # Convert data to final structure
+        self.build_tree()
+        self.propagate_station()
+        self.tree_to_df()
 
-    return df_lim
+    def build_tree(self):
+        # Implementation
+        pass
 
-# Follow with the definitions of the other functions, each wrapped with appropriate logging statements
-# Example for a single function:
-def load_mbom(variant): 
-    logging.info(f"Loading MBOM data for variant: {variant}")
-    # Function body remains the same
-    # Make sure to add appropriate logging statements at key steps or potential failure points
-    logging.info("MBOM data loaded and processed")
-    return data
+    def propagate_station(self):
+        # Implementation
+        pass
+
+    def tree_to_df(self):
+        # Convert the tree back to DataFrame
+        pass
