@@ -1,8 +1,7 @@
+import plotly.graph_objects as go
 import pandas as pd
-import seaborn as sns
-import matplotlib.pyplot as plt
 
-# Example data
+# Example DataFrame
 data = {
     'station': ['Station A', 'Station B', 'Station C', 'Station D'],
     'assembly_count': [100, 150, 200, 120],
@@ -12,28 +11,34 @@ data = {
 df = pd.DataFrame(data)
 
 # Bar Chart for Assembly and Operation Counts by Station
-plt.figure(figsize=(10, 6))
-bar_width = 0.35
-index = range(len(df['station']))
+fig = go.Figure(data=[
+    go.Bar(name='Assembly Count', x=df['station'], y=df['assembly_count'], marker_color='indianred'),
+    go.Bar(name='Operation Count', x=df['station'], y=df['operation_count'], marker_color='lightsalmon')
+])
 
-plt.bar(index, df['assembly_count'], bar_width, label='Assembly Count')
-plt.bar([i+bar_width for i in index], df['operation_count'], bar_width, label='Operation Count')
+# Update the layout
+fig.update_layout(barmode='group', title_text='Assembly and Operation Counts by Station')
+fig.show()
 
-plt.xlabel('Station')
-plt.ylabel('Counts')
-plt.title('Assembly and Operation Counts by Station')
-plt.xticks([i + bar_width / 2 for i in index], df['station'])
-plt.legend()
-plt.tight_layout()
-plt.show()
+# Bubble Chart for Assembly and Operation Count by Department
+fig = go.Figure(data=[go.Scatter(
+    x=df['assembly_count'],
+    y=df['operation_count'],
+    text=df['departments'],
+    mode='markers',
+    marker=dict(
+        size=df['operation_count'],
+        color=df['departments'].astype('category').cat.codes, # Assign a unique color to each department
+        showscale=True
+    )
+)])
 
-# Convert departments to a categorical type for better color mapping
-df['departments'] = pd.Categorical(df['departments'])
+fig.update_layout(title_text='Assembly vs. Operation Count by Department', xaxis_title='Assembly Count', yaxis_title='Operation Count')
+fig.show()
 
-# Heatmap for Assembly and Operation Counts by Department (Mockup, needs pivot data)
-# This is an illustrative step, assuming departments and stations are related in a matrix form
-# For a real heatmap, we would need a pivot table or correlation matrix here
+# Pie Chart for Department Distribution
+dept_counts = df['departments'].value_counts()
+fig = go.Figure(data=[go.Pie(labels=dept_counts.index, values=dept_counts.values)])
 
-# Pair Plot (Scatterplot Matrix) example
-sns.pairplot(df, hue='departments')
-plt.show()
+fig.update_layout(title_text='Department Distribution Across Stations')
+fig.show()
