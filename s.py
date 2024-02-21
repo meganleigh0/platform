@@ -1,63 +1,50 @@
 import pandas as pd
 import numpy as np
 import re
+from anytree import Node, RenderTree
+from utils.logger import Logger  # Make sure this import matches the location of your Logger class
 
-def load_mbom(variant): 
-    # Load CSV file into DataFrame
-    mbom = pd.read_csv(f"assets/{variant}.csv")
-    print("Initial DataFrame loaded:", mbom.shape)
+def process_mbom(var):
+    # Initialize logger
+    logger = Logger(var)
+    
+    logger.log_entry("MBOM processing started")
 
-    # Copy mbom data frame
-    df = mbom.copy()
+    # Load file
+    df_lim = load_mbom(var)[1]
+    logger.log_entry("MBOM file loaded", shape=str(df_lim.shape))
     
-    # Remove leading and trailing spaces and replace with empty string
-    df = df.replace(r"^ +| +$", r"", regex=True)
-    print("After trimming spaces:", df.shape)
+    # Assign unique id to each line
+    df_lim = set_ids(df_lim)
+    logger.log_entry("Unique IDs assigned", shape=str(df_lim.shape))
+
+    # Assign station point
+    df_lim = assign_station_point(df_lim)
+    logger.log_entry("Station points assigned", shape=str(df_lim.shape))
     
-    # Remove hyphen from 'Part Number' column
-    df.rename(columns={'Part-Number': 'PartNumber'}, inplace=True)
-    print("After renaming 'Part-Number' to 'PartNumber':", df.shape)
+    # Search standards
+    mbom_ops = search_swh(df_lim)
+    logger.log_entry("Standards searched and mapped")
+
+    # Map standards to assemblies
+    df_lim['Operations'] = df_lim['mbomID'].map(mbom_ops).fillna(0)
+    logger.log_entry("Operations mapped to assemblies", shape=str(df_lim.shape))
    
-    # Remove rows with 'Supply' column value equal to "Bulk" (ROP/trivial parts) and "Phantom"
-    df = df.loc[(df['Supply'] != 'Bulk') & (df['Supply'] != 'Phantom')]
-    print("After removing rows with 'Supply' = 'Bulk' or 'Phantom':", df.shape)
+    # Translate to tree structure
+    nodes = build_tree(df_lim)
+    logger.log_entry("Tree structure built")
 
-    # Clean descriptions (apply clean_description function)
-    df['Description'] = df['Description'].astype(str)
-    df['Description'] = df['Description'].apply(clean_description)
-    print("After cleaning descriptions:", df.shape)
+    # Cascade station definitions
+    propagate_station(nodes[100001])  # Assuming 100001 is the root ID, adjust as necessary
+    logger.log_entry("Station definitions propagated through tree")
     
-    # Cast Quantity as integer
-    df['Qty'] = pd.to_numeric(df['Qty'], errors='coerce')
-    df['Qty'] = df['Qty'].apply(to_int_or_nan)
-    df.dropna(subset=['Qty'], inplace=True)
-    df['Qty'] = df['Qty'].astype(int)
-    print("After casting 'Qty' to integer and dropping NaN:", df.shape)
-   
-    # Extract plant DataFrames by "Usr Org"
-    df_lim = df[df["Usr Org"] == "LIM"]
-    df_scr = df[df["Usr Org"] == "SCR"]
-    df_tlh = df[df["Usr Org"] == "TLH"]
-    print("After extracting plant-specific DataFrames:", f"LIM: {df_lim.shape}, SCR: {df_scr.shape}, TLH: {df_tlh.shape}")
+    # Convert to dataframe
+    df_final = tree_to_df(nodes)
+    logger.log_entry("Tree converted back to DataFrame", shape=str(df_final.shape))
 
-    # Drop columns not required for use in model functions
-    columns_to_drop = [
-        'Item No', 'Ext Qty', 'Type', 'Sre Org', 'Dis Date', 'Supply',
-        'Fixed Order Qty', 'Planning Method', 'Long Description'
-    ]
-    df_lim.drop(columns=columns_to_drop, inplace=True)
-    df_scr.drop(columns=columns_to_drop, inplace=True)
-    df_tlh.drop(columns=columns_to_drop, inplace=True)
-    print("After dropping unnecessary columns:", f"LIM: {df_lim.shape}, SCR: {df_scr.shape}, TLH: {df_tlh.shape}")
-    
-    # Return a list of DataFrames sorted by plant
-    data = [mbom, df_lim, df_scr, df_tlh]
-    return data
+    # Save the log to a CSV
+    logger.save_to_csv(f"logs/{var}_process_log.csv")
 
-def clean_description(desc):
-    # Assume this function is defined elsewhere with the correct logic
-    pass
+    return df_final
 
-def to_int_or_nan(val):
-    # Assume this function is defined elsewhere with the correct logic
-    pass
+# Ensure all required functions (load_mbom, set_ids, assign_station_point, search_swh, build_tree, propagate_station, tree_to_df) are properly defined and include logging where applicable.
