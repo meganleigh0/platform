@@ -1,3 +1,12 @@
+import pandas as pd
+from fuzzywuzzy import process
+
+
+
+def match_descriptions(assembly_df, description_df):
+    # Convert the Description column to a list for faster processing
+    descriptions = description_df['Description'].tolist()
+
     # Function to apply on each assembly to find the best match
     def find_best_match(assembly):
         # Use fuzzywuzzy to find the best match for the assembly in the descriptions
