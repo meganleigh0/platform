@@ -1,16 +1,22 @@
-operations_data = []
+def match_criticality(df_lim, critcal_parts):
+    # Initialize TF-IDF Vectorizer
+    vectorizer = TfidfVectorizer()
+    # Fit on the combined set of text for better vectorization
+    vectorizer.fit(pd.concat([df_lim['Description'], critcal_parts['Assembly']]))
 
-for index, row in df_lim.iterrows():
-    for operation in row['Operations']:
-        operations_data.append({'Station': row['Station'], 'Department': operation[2], 'Hours': operation[0]})
+    # Vectorize descriptions and assemblies
+    desc_vectors = vectorizer.transform(df_lim['Description'])
+    assembly_vectors = vectorizer.transform(critcal_parts['Assembly'])
 
-operations_df = pd.DataFrame(operations_data)
-total_hours_by_dept = operations_df.groupby('Department')['Hours'].sum().reset_index(name='Total Hours')
-import plotly.express as px
+    # Compute cosine similarity
+    similarity = cosine_similarity(desc_vectors, assembly_vectors)
 
-fig = px.bar(total_hours_by_dept, x='Department', y='Total Hours',
-             title='Total Operation Hours by Department',
-             labels={'Total Hours': 'Total Operation Hours'},
-             color='Total Hours',
-             color_continuous_scale=px.colors.sequential.Viridis)
-fig.show()
+    # For each item in df_lim, find the best match in critcal_parts based on similarity
+    best_matches = similarity.argmax(axis=1)
+    df_lim['Criticality'] = critcal_parts.iloc[best_matches]['Criticality'].values
+    df_lim['Matched Assembly'] = critcal_parts.iloc[best_matches]['Assembly'].values
+
+    return df_lim
+
+# Apply the function
+df_lim_updated = match_criticality(df_lim, critcal_parts)
