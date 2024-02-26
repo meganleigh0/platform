@@ -1,16 +1,16 @@
-    # Initialize an empty list to collect expanded rows
-    expanded_rows = []
+operations_data = []
 
-    # Manually expand the 'Operations' list into separate rows
-    for index, row in self.df_lim.iterrows():
-        if row['Operations']:
-            for operation in row['Operations']:
-                expanded_row = row.to_dict()
-                expanded_row['Operation Hours'] = operation[0]
-                expanded_row['Department'] = operation[2]
-                expanded_rows.append(expanded_row)
-        else:
-            expanded_row = row.to_dict()
-            expanded_row['Operation Hours'] = None
-            expanded_row['Department'] = None
-            expanded_rows.append(expanded_row)
+for index, row in df_lim.iterrows():
+    for operation in row['Operations']:
+        operations_data.append({'Station': row['Station'], 'Department': operation[2], 'Hours': operation[0]})
+
+operations_df = pd.DataFrame(operations_data)
+total_hours_by_dept = operations_df.groupby('Department')['Hours'].sum().reset_index(name='Total Hours')
+import plotly.express as px
+
+fig = px.bar(total_hours_by_dept, x='Department', y='Total Hours',
+             title='Total Operation Hours by Department',
+             labels={'Total Hours': 'Total Operation Hours'},
+             color='Total Hours',
+             color_continuous_scale=px.colors.sequential.Viridis)
+fig.show()
