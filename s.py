@@ -1,9 +1,12 @@
-def summarize_pipeline(df_lim):
+import matplotlib.pyplot as plt
+import pandas as pd
+
+def summarize_pipeline(self):
     unique_departments = set()
     operations_by_station = {}
     parts_and_assemblies_by_station = {}
     
-    for index, row in df_lim.iterrows():
+    for index, row in self.df_lim.iterrows():
         # Update unique departments
         for operation in row['Operations']:
             if operation:  # Checks if the operation is not an empty list
@@ -23,12 +26,40 @@ def summarize_pipeline(df_lim):
         else:
             parts_and_assemblies_by_station[station]['Parts'] += 1
             
-    return {
-        'Unique Departments': unique_departments,
-        'Operations by Station': operations_by_station,
-        'Parts and Assemblies by Station': parts_and_assemblies_by_station
-    }
+    # Print formatted output
+    print("MBOM Pipeline Summary\n")
+    print(f"Unique Departments: {sorted(list(unique_departments))}")
+    print("\nOperations by Station:")
+    for station, count in operations_by_station.items():
+        print(f"  {station}: {count} operations")
+    print("\nParts and Assemblies by Station:")
+    for station, counts in parts_and_assemblies_by_station.items():
+        print(f"  {station}: {counts['Parts']} parts, {counts['Assemblies']} assemblies")
+    
+    # Optionally, include a visual summary
+    self.visualize_summary(operations_by_station, parts_and_assemblies_by_station)
 
-# Example usage
-# summary = summarize_pipeline(df_lim)
-# print(summary)
+def visualize_summary(self, operations_by_station, parts_and_assemblies_by_station):
+    # Convert dictionaries to DataFrames for plotting
+    ops_df = pd.DataFrame(list(operations_by_station.items()), columns=['Station', 'Operations'])
+    parts_assemblies_df = pd.DataFrame(parts_and_assemblies_by_station).T.reset_index()
+    parts_assemblies_df.columns = ['Station', 'Parts', 'Assemblies']
+    
+    # Plotting operations by station
+    plt.figure(figsize=(10, 6))
+    plt.bar(ops_df['Station'], ops_df['Operations'], color='skyblue')
+    plt.title('Operations Count by Station')
+    plt.xlabel('Station')
+    plt.ylabel('Operations Count')
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+    plt.show()
+
+    # Plotting parts and assemblies by station
+    parts_assemblies_df.plot(x='Station', kind='bar', stacked=True, figsize=(10, 6))
+    plt.title('Parts and Assemblies Count by Station')
+    plt.xlabel('Station')
+    plt.ylabel('Count')
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+    plt.show()
