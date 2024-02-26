@@ -1,17 +1,14 @@
-import simpy
+    # Function to apply on each assembly to find the best match
+    def find_best_match(assembly):
+        # Use fuzzywuzzy to find the best match for the assembly in the descriptions
+        best_match = process.extractOne(assembly, descriptions)
+        return best_match[0] if best_match else None
 
-def process(env, name, priority_resource, priority):
-    with priority_resource.request(priority=priority) as req:
-        yield req
-        print(f"{name} obtained resource at {env.now}")
-        yield env.timeout(1)
-        print(f"{name} released resource at {env.now}")
+    # Apply the function to the Assembly column and create a new column with the results
+    assembly_df['Best Match Description'] = assembly_df['Assembly'].apply(find_best_match)
+    return assembly_df
 
-env = simpy.Environment()
-priority_resource = simpy.PriorityResource(env, capacity=1)
+# Apply the function
+df_matched = match_descriptions(df_assembly, df_description)
 
-env.process(process(env, 'Process A', priority_resource, priority=0))
-env.process(process(env, 'Process B', priority_resource, priority=2))
-env.process(process(env, 'Process C', priority_resource, priority=1))
-
-env.run(until=10)
+print(df_matched)
