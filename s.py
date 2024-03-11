@@ -1,14 +1,35 @@
-# Adjusting the DataFrame to concatenate mbomID with the variant name for uniqueness
-def adjust_df(df, variant_name):
-    # This function assumes 'mbomID' is part of the index
-    # If it's not, you might need to set it first using df.set_index([...], inplace=True)
-    df.index = df.index.set_levels(df.index.levels[-3].astype(str) + '_' + variant_name, level=-3) # Adjusting the level for 'mbomID' assuming it's the third level in the index
-    return df
+import matplotlib.pyplot as plt
+import seaborn as sns
 
-# Apply the adjustment to each DataFrame before concatenating
-adjusted_dfs = {variant: adjust_df(df.copy(), variant) for variant, df in longest_operations.items()}
+# Set visual style for seaborn
+sns.set(style="whitegrid")
 
-# Now concatenate all adjusted DataFrames into one
-all_operations_df = pd.concat(adjusted_dfs.values(), keys=adjusted_dfs.keys(), names=['Variant', 'Index'])
+# 1. Distribution of Hours per Operation
+plt.figure(figsize=(10, 6))
+sns.histplot(all_operations_df['Hours'], bins=30, kde=True)
+plt.title('Distribution of Hours Spent per Operation')
+plt.xlabel('Hours')
+plt.ylabel('Frequency')
+plt.show()
 
-# Proceed with the analysis as before
+# 2. Top Operations by Total Hours
+# Aggregating hours by operation description
+operation_hours_sum = all_operations_df.groupby('Operation Description')['Hours'].sum().nlargest(10)
+plt.figure(figsize=(10, 6))
+operation_hours_sum.plot(kind='bar')
+plt.title('Top 10 Operations by Total Hours')
+plt.xlabel('Operation Description')
+plt.ylabel('Total Hours')
+plt.xticks(rotation=45, ha="right")
+plt.tight_layout()
+plt.show()
+
+# 3. Department Involvement in Operations
+# Aggregating counts of operations by department
+department_operations_count = all_operations_df['Name'].value_counts().head(10)
+plt.figure(figsize=(10, 8))
+department_operations_count.plot(kind='pie', autopct='%1.1f%%', startangle=140)
+plt.title('Top 10 Departments Involved in Operations')
+plt.ylabel('')  # Hide y-label for cleaner look
+plt.tight_layout()
+plt.show()
