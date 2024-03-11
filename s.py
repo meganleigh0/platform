@@ -1,35 +1,41 @@
-import matplotlib.pyplot as plt
-import seaborn as sns
+# Assuming all_operations_df is already defined with the MultiIndex structure
 
-# Set visual style for seaborn
-sns.set(style="whitegrid")
+# Resetting the index for easier manipulation and to use 'Variant' in our visualizations
+df_reset = all_operations_df.reset_index()
 
-# 1. Distribution of Hours per Operation
-plt.figure(figsize=(10, 6))
-sns.histplot(all_operations_df['Hours'], bins=30, kde=True)
-plt.title('Distribution of Hours Spent per Operation')
-plt.xlabel('Hours')
-plt.ylabel('Frequency')
-plt.show()
+# Aggregating data while considering the 'Variant'
+variant_metrics = df_reset.groupby(['Variant', 'Operation Description', 'Name']).agg(
+    TotalHours=pd.NamedAgg(column='Hours', aggfunc='sum'),
+    AvgHours=pd.NamedAgg(column='Hours', aggfunc='mean'),
+    OperationsCount=pd.NamedAgg(column='Operation Description', aggfunc='count')
+).reset_index()
 
-# 2. Top Operations by Total Hours
-# Aggregating hours by operation description
-operation_hours_sum = all_operations_df.groupby('Operation Description')['Hours'].sum().nlargest(10)
-plt.figure(figsize=(10, 6))
-operation_hours_sum.plot(kind='bar')
-plt.title('Top 10 Operations by Total Hours')
-plt.xlabel('Operation Description')
-plt.ylabel('Total Hours')
-plt.xticks(rotation=45, ha="right")
-plt.tight_layout()
-plt.show()
+# Total Hours per Operation by Variant
+chart_total_hours = alt.Chart(variant_metrics).mark_bar().encode(
+    x=alt.X('Variant:N', sort=alt.EncodingSortField(field="TotalHours", op="sum", order='descending')),
+    y='TotalHours:Q',
+    color='Variant:N',
+    tooltip=['Variant', 'Operation Description', 'TotalHours', 'AvgHours'],
+    column=alt.Column('Operation Description:N', header=alt.Header(labelAngle=-90, titleOrient="top"))
+).properties(width=150, height=200, title="Total Hours per Operation by Variant")
 
-# 3. Department Involvement in Operations
-# Aggregating counts of operations by department
-department_operations_count = all_operations_df['Name'].value_counts().head(10)
-plt.figure(figsize=(10, 8))
-department_operations_count.plot(kind='pie', autopct='%1.1f%%', startangle=140)
-plt.title('Top 10 Departments Involved in Operations')
-plt.ylabel('')  # Hide y-label for cleaner look
-plt.tight_layout()
-plt.show()
+# Average Hours per Operation by Variant
+chart_avg_hours = alt.Chart(variant_metrics).mark_bar().encode(
+    x=alt.X('Variant:N', sort=alt.EncodingSortField(field="AvgHours", op="mean", order='descending')),
+    y='AvgHours:Q',
+    color='Variant:N',
+    tooltip=['Variant', 'Operation Description', 'TotalHours', 'AvgHours'],
+    column=alt.Column('Operation Description:N', header=alt.Header(labelAngle=-90, titleOrient="top"))
+).properties(width=150, height=200, title="Average Hours per Operation by Variant")
+
+chart_total_hours | chart_avg_hours
+
+# Department Involvement in Operations
+chart_department_involvement = alt.Chart(variant_metrics).mark_bar().encode(
+    x='sum(OperationsCount):Q',
+    y=alt.Y('Name:N', sort=alt.EncodingSortField(field="OperationsCount", op="sum", order='descending')),
+    color='Variant:N',
+    tooltip=['Name', 'sum(OperationsCount)', 'Variant']
+).properties(width=600, title="Department Involvement in Operations Across Variants")
+
+chart_department_involvement.display()
