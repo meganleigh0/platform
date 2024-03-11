@@ -2,29 +2,21 @@ import altair as alt
 
 # Assuming all_operations is already loaded into a DataFrame
 
-# Define the bubble sizes based on the bins
-def bubble_size(hour):
-    if hour <= 10:
-        return 100
-    elif hour <= 20:
-        return 200
-    elif hour <= 100:
-        return 300
-    else:
-        return 400
+# Define bins for the Hours
+bin_edges = [0, 10, 20, 100, max(all_operations['Hours'])]  # Assuming this covers all possible hours
+bin_labels = ['1-10 Hours', '11-20 Hours', '21-100 Hours', '100+ Hours']
 
-# Apply the bubble sizes
-chart2_updated = alt.Chart(all_operations).transform_bin(
-    ['hourBin'], field='Hours', bin=alt.Bin(maxbins=4, extent=[0, 100])
-).transform_aggregate(
-    total_hours='sum(Hours)', groupby=['hourBin']
-).transform_calculate(
-    bubbleSize="if(datum.hourBin <= 10, 100, if(datum.hourBin <= 20, 200, if(datum.hourBin <= 100, 300, 400)))"
-).mark_point().encode(
-    x=alt.X('hourBin:N', title='Hour Bins'),
-    y=alt.Y('total_hours:Q', aggregate='sum', title='Total Hours'),
-    size=alt.Size('bubbleSize:Q', scale=alt.Scale(range=[100, 400]), legend=alt.Legend(title="Hours")),
-    tooltip=['hourBin', 'total_hours']
-).properties(title="Operation Similarities Across Variants by Hour Bins")
+# Assign each operation to a bin
+all_operations['HourBin'] = pd.cut(all_operations['Hours'], bins=bin_edges, labels=bin_labels, right=False)
 
-chart2_updated.display()
+# Now, create a bubble chart with customized sizes
+chart = alt.Chart(all_operations).mark_point().encode(
+    x=alt.X('HourBin:O', title='Hour Bins'),
+    y=alt.Y('count():Q', title='Number of Operations'),
+    size=alt.Size('mean(Hours):Q', scale=alt.Scale(range=[100, 400]), title='Average Hours'),
+    tooltip=[alt.Tooltip('HourBin:N', title='Hour Bin'), alt.Tooltip('count():Q', title='Ops Count'), alt.Tooltip('mean(Hours):Q', title='Avg Hours')]
+).properties(
+    title='Operation Count and Average Hours by Hour Bin'
+)
+
+chart.display()
