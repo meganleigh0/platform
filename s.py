@@ -1,23 +1,14 @@
-import pandas as pd
-from fuzzywuzzy import process
+# Adjusting the DataFrame to concatenate mbomID with the variant name for uniqueness
+def adjust_df(df, variant_name):
+    # This function assumes 'mbomID' is part of the index
+    # If it's not, you might need to set it first using df.set_index([...], inplace=True)
+    df.index = df.index.set_levels(df.index.levels[-3].astype(str) + '_' + variant_name, level=-3) # Adjusting the level for 'mbomID' assuming it's the third level in the index
+    return df
 
+# Apply the adjustment to each DataFrame before concatenating
+adjusted_dfs = {variant: adjust_df(df.copy(), variant) for variant, df in longest_operations.items()}
 
+# Now concatenate all adjusted DataFrames into one
+all_operations_df = pd.concat(adjusted_dfs.values(), keys=adjusted_dfs.keys(), names=['Variant', 'Index'])
 
-def match_descriptions(assembly_df, description_df):
-    # Convert the Description column to a list for faster processing
-    descriptions = description_df['Description'].tolist()
-
-    # Function to apply on each assembly to find the best match
-    def find_best_match(assembly):
-        # Use fuzzywuzzy to find the best match for the assembly in the descriptions
-        best_match = process.extractOne(assembly, descriptions)
-        return best_match[0] if best_match else None
-
-    # Apply the function to the Assembly column and create a new column with the results
-    assembly_df['Best Match Description'] = assembly_df['Assembly'].apply(find_best_match)
-    return assembly_df
-
-# Apply the function
-df_matched = match_descriptions(df_assembly, df_description)
-
-print(df_matched)
+# Proceed with the analysis as before
