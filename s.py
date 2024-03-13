@@ -1,22 +1,24 @@
-import altair as alt
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
 
-# Assuming all_operations is already loaded into a DataFrame
+# Assuming 'mbom_df' is your DataFrame
 
-# Define bins for the Hours
-bin_edges = [0, 10, 20, 100, max(all_operations['Hours'])]  # Assuming this covers all possible hours
-bin_labels = ['1-10 Hours', '11-20 Hours', '21-100 Hours', '100+ Hours']
+# Step 2: Aggregate the data
+aggregated_data = mbom_df.groupby(['Usr Org', 'Sec Org', 'Make/Buy'])['PartNumber'].count().reset_index(name='Count')
 
-# Assign each operation to a bin
-all_operations['HourBin'] = pd.cut(all_operations['Hours'], bins=bin_edges, labels=bin_labels, right=False)
+# Step 3: Visualization
+# Creating a pivot table for the aggregated data
+pivot_table = aggregated_data.pivot_table(index=['Usr Org', 'Sec Org'], columns='Make/Buy', values='Count', fill_value=0).reset_index()
 
-# Now, create a bubble chart with customized sizes
-chart = alt.Chart(all_operations).mark_point().encode(
-    x=alt.X('HourBin:O', title='Hour Bins'),
-    y=alt.Y('count():Q', title='Number of Operations'),
-    size=alt.Size('mean(Hours):Q', scale=alt.Scale(range=[100, 400]), title='Average Hours'),
-    tooltip=[alt.Tooltip('HourBin:N', title='Hour Bin'), alt.Tooltip('count():Q', title='Ops Count'), alt.Tooltip('mean(Hours):Q', title='Avg Hours')]
-).properties(
-    title='Operation Count and Average Hours by Hour Bin'
-)
+# Plotting
+plt.figure(figsize=(12, 8))
+sns.barplot(x='Sec Org', y='Count', hue='Make/Buy', data=aggregated_data, palette=['#4C9F70', '#F44336'])
+plt.title('Make vs Buy Counts per Sec Org and Usr Org')
+plt.xlabel('Sec Org')
+plt.ylabel('Count')
+plt.xticks(rotation=45)
+plt.legend(title='Make/Buy')
+plt.tight_layout()
 
-chart.display()
+plt.show()
