@@ -1,24 +1,50 @@
 import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
 
-# Assuming 'mbom_df' is your DataFrame
+def analyze_plant_production(mbom_dfs):
+    # Define plant codes and their product types
+    plant_info = {
+        'T': {'types': ['wiring harnesses', 'electronics'], 'codes': []},
+        'A': {'types': ['reclaimed parts', 'Product S'], 'codes': ['AD', 'AG']},
+        'J': {'types': ['welding/final assembly', 'Product A'], 'codes': []},
+        'S': {'types': ['LRUS'], 'codes': []}
+    }
 
-# Step 2: Aggregate the data
-aggregated_data = mbom_df.groupby(['Usr Org', 'Sec Org', 'Make/Buy'])['PartNumber'].count().reset_index(name='Count')
+    # Initialize a dictionary to hold the analysis results
+    plant_analysis = {plant: {'products': [], 'count': 0} for plant in plant_info.keys()}
 
-# Step 3: Visualization
-# Creating a pivot table for the aggregated data
-pivot_table = aggregated_data.pivot_table(index=['Usr Org', 'Sec Org'], columns='Make/Buy', values='Count', fill_value=0).reset_index()
+    # Process each product variant's dataframe
+    for variant, df in mbom_dfs.items():
+        # Check each part in the dataframe
+        for index, row in df.iterrows():
+            # Determine the plant based on 'Src Org' or 'Usr Org'
+            for plant, info in plant_info.items():
+                if any(code in row['Src Org'] or code in row['Usr Org'] for code in info['codes']):
+                    plant_analysis[plant]['products'].append(row['PartNumber'])
+                    plant_analysis[plant]['count'] += 1
+                    break
 
-# Plotting
-plt.figure(figsize=(12, 8))
-sns.barplot(x='Sec Org', y='Count', hue='Make/Buy', data=aggregated_data, palette=['#4C9F70', '#F44336'])
-plt.title('Make vs Buy Counts per Sec Org and Usr Org')
-plt.xlabel('Sec Org')
-plt.ylabel('Count')
-plt.xticks(rotation=45)
-plt.legend(title='Make/Buy')
-plt.tight_layout()
+    # Remove duplicates in product lists and count them
+    for plant in plant_analysis.keys():
+        plant_analysis[plant]['products'] = list(set(plant_analysis[plant]['products']))
+        plant_analysis[plant]['count'] = len(plant_analysis[plant]['products'])
 
-plt.show()
+    return plant_analysis
+
+# Usage example
+# mbom_dfs = {
+#     'variant1': pd.DataFrame({
+#         'PartNumber': ['123', '456'],
+#         'Description': ['Part A', 'Part B'],
+#         'mbomID': ['001', '002'],
+#         'ParentID': ['0', '001'],
+#         'make/buy': ['make', 'buy'],
+#         'Number of Children': [0, 1],
+#         'Src Org': ['AD', 'J01'],
+#         'Usr Org': ['A01', 'J01']
+#     }),
+#     'variant2': pd.DataFrame(...),
+#     ...
+# }
+# 
+# analysis_result = analyze_plant_production(mbom_dfs)
+# print(analysis_result)
