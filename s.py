@@ -1,50 +1,64 @@
 import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+from matplotlib.sankey import Sankey
 
-def analyze_plant_production(mbom_dfs):
-    # Define plant codes and their product types
-    plant_info = {
-        'T': {'types': ['wiring harnesses', 'electronics'], 'codes': []},
-        'A': {'types': ['reclaimed parts', 'Product S'], 'codes': ['AD', 'AG']},
-        'J': {'types': ['welding/final assembly', 'Product A'], 'codes': []},
-        'S': {'types': ['LRUS'], 'codes': []}
-    }
-
-    # Initialize a dictionary to hold the analysis results
-    plant_analysis = {plant: {'products': [], 'count': 0} for plant in plant_info.keys()}
-
-    # Process each product variant's dataframe
-    for variant, df in mbom_dfs.items():
-        # Check each part in the dataframe
-        for index, row in df.iterrows():
-            # Determine the plant based on 'Src Org' or 'Usr Org'
-            for plant, info in plant_info.items():
-                if any(code in row['Src Org'] or code in row['Usr Org'] for code in info['codes']):
-                    plant_analysis[plant]['products'].append(row['PartNumber'])
-                    plant_analysis[plant]['count'] += 1
-                    break
-
-    # Remove duplicates in product lists and count them
-    for plant in plant_analysis.keys():
-        plant_analysis[plant]['products'] = list(set(plant_analysis[plant]['products']))
-        plant_analysis[plant]['count'] = len(plant_analysis[plant]['products'])
-
-    return plant_analysis
-
-# Usage example
+# Assuming mbom_dfs is a dictionary with keys as product variants and values as dataframes
 # mbom_dfs = {
-#     'variant1': pd.DataFrame({
-#         'PartNumber': ['123', '456'],
-#         'Description': ['Part A', 'Part B'],
-#         'mbomID': ['001', '002'],
-#         'ParentID': ['0', '001'],
-#         'make/buy': ['make', 'buy'],
-#         'Number of Children': [0, 1],
-#         'Src Org': ['AD', 'J01'],
-#         'Usr Org': ['A01', 'J01']
-#     }),
-#     'variant2': pd.DataFrame(...),
+#     'variant1': df1,
+#     'variant2': df2,
 #     ...
 # }
-# 
-# analysis_result = analyze_plant_production(mbom_dfs)
-# print(analysis_result)
+
+# Prepare a list to collect the flow data
+flows = []
+
+# Iterate through each product variant's dataframe
+for variant, df in mbom_dfs.items():
+    # For each part, summarize the flow from Src Org to Usr Org
+    for index, row in df.iterrows():
+        src_org = row['Src Org']
+        usr_org = row['Usr Org']
+        flow_value = 1  # Or some other logic to determine the quantity or importance of the flow
+
+        # Add the flow to the list
+        flows.append((src_org, usr_org, flow_value))
+
+# Aggregate flows between the same Src Org and Usr Org
+flow_data = pd.DataFrame(flows, columns=['Src Org', 'Usr Org', 'Flow'])
+aggregate_flows = flow_data.groupby(['Src Org', 'Usr Org']).sum().reset_index()
+
+# Now aggregate_flows contains the summarized flow data between organizations
+# Next, we can use this data to create a Sankey diagram
+
+# Prepare data for the Sankey diagram
+sankey_flows = []
+sankey_labels = []
+label_mapping = {}
+
+for index, row in aggregate_flows.iterrows():
+    src_org, usr_org, flow = row['Src Org'], row['Usr Org'], row['Flow']
+
+    # Check if we already have the src_org in the labels list
+    if src_org not in label_mapping:
+        label_mapping[src_org] = len(sankey_labels)
+        sankey_labels.append(src_org)
+
+    # Check if we already have the usr_org in the labels list
+    if usr_org not in label_mapping:
+        label_mapping[usr_org] = len(sankey_labels)
+        sankey_labels.append(usr_org)
+
+    # Add the flow (negative for source, positive for user)
+    sankey_flows.append((label_mapping[src_org], label_mapping[usr_org], flow))
+
+# Plot the Sankey diagram
+sankey = Sankey()
+
+# Add flows to the Sankey diagram
+for src, dst, flow in sankey_flows:
+    sankey.add(flows=[(src, dst, flow)], labels=sankey_labels, orientations=[-1, 1])
+
+# Draw the Sankey diagram
+sankey.finish()
+plt.show()
