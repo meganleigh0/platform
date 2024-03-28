@@ -1,64 +1,57 @@
 import pandas as pd
 import matplotlib.pyplot as plt
-import seaborn as sns
 from matplotlib.sankey import Sankey
 
-# Assuming mbom_dfs is a dictionary with keys as product variants and values as dataframes
+# Assuming mbom_dfs is your provided dictionary with dataframes
+# For example:
 # mbom_dfs = {
-#     'variant1': df1,
-#     'variant2': df2,
+#     'variant1': pd.DataFrame({
+#         'PartNumber': [..],
+#         'Description': [..],
+#         'mbomID': [..],
+#         'ParentID': [..],
+#         'make/buy': [..],
+#         'Number of Children': [..],
+#         'Src Org': [..],
+#         'Usr Org': [..]
+#     }),
 #     ...
 # }
 
-# Prepare a list to collect the flow data
 flows = []
+labels = []
+label_indices = {}
 
-# Iterate through each product variant's dataframe
 for variant, df in mbom_dfs.items():
-    # For each part, summarize the flow from Src Org to Usr Org
-    for index, row in df.iterrows():
-        src_org = row['Src Org']
-        usr_org = row['Usr Org']
-        flow_value = 1  # Or some other logic to determine the quantity or importance of the flow
+    for _, row in df.iterrows():
+        src = row['Src Org']
+        usr = row['Usr Org']
+        flow = 1  # Or determine the flow based on your data specifics
 
-        # Add the flow to the list
-        flows.append((src_org, usr_org, flow_value))
+        # Assign unique indices to each organization
+        for org in [src, usr]:
+            if org not in label_indices:
+                label_indices[org] = len(labels)
+                labels.append(org)
 
-# Aggregate flows between the same Src Org and Usr Org
-flow_data = pd.DataFrame(flows, columns=['Src Org', 'Usr Org', 'Flow'])
-aggregate_flows = flow_data.groupby(['Src Org', 'Usr Org']).sum().reset_index()
+        flows.append((label_indices[src], label_indices[usr], flow))
 
-# Now aggregate_flows contains the summarized flow data between organizations
-# Next, we can use this data to create a Sankey diagram
-
-# Prepare data for the Sankey diagram
+# Preparing the Sankey diagram data
 sankey_flows = []
 sankey_labels = []
-label_mapping = {}
+for src, dst, flow in flows:
+    sankey_flows.append((src, dst, flow))
+    sankey_labels.append(labels[src])  # add source label
+    sankey_labels.append(labels[dst])  # add destination label
 
-for index, row in aggregate_flows.iterrows():
-    src_org, usr_org, flow = row['Src Org'], row['Usr Org'], row['Flow']
-
-    # Check if we already have the src_org in the labels list
-    if src_org not in label_mapping:
-        label_mapping[src_org] = len(sankey_labels)
-        sankey_labels.append(src_org)
-
-    # Check if we already have the usr_org in the labels list
-    if usr_org not in label_mapping:
-        label_mapping[usr_org] = len(sankey_labels)
-        sankey_labels.append(usr_org)
-
-    # Add the flow (negative for source, positive for user)
-    sankey_flows.append((label_mapping[src_org], label_mapping[usr_org], flow))
-
-# Plot the Sankey diagram
+# Draw the Sankey diagram
 sankey = Sankey()
 
 # Add flows to the Sankey diagram
-for src, dst, flow in sankey_flows:
-    sankey.add(flows=[(src, dst, flow)], labels=sankey_labels, orientations=[-1, 1])
+# Ensure each flow has a corresponding orientation, which can be 0 (left or right)
+orientations = [0] * len(sankey_flows)  # For simplicity, assuming all flows are left-to-right or right-to-left
+sankey.add(flows=sankey_flows, labels=sankey_labels, orientations=orientations)
 
-# Draw the Sankey diagram
+# Finish and show the Sankey diagram
 sankey.finish()
 plt.show()
