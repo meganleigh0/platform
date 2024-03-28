@@ -2,56 +2,50 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.sankey import Sankey
 
-# Assuming mbom_dfs is your provided dictionary with dataframes
-# For example:
+# Sample structure of mbom_dfs
 # mbom_dfs = {
 #     'variant1': pd.DataFrame({
-#         'PartNumber': [..],
-#         'Description': [..],
-#         'mbomID': [..],
-#         'ParentID': [..],
-#         'make/buy': [..],
-#         'Number of Children': [..],
-#         'Src Org': [..],
-#         'Usr Org': [..]
+#         'PartNumber': [...],
+#         'Description': [...],
+#         'mbomID': [...],
+#         'ParentID': [...],
+#         'make/buy': [...],
+#         'Number of Children': [...],
+#         'Src Org': [...],
+#         'Usr Org': [...]
 #     }),
 #     ...
 # }
 
+# Initialize lists for Sankey diagram data
 flows = []
 labels = []
 label_indices = {}
 
+# Loop through each product variant in the dictionary
 for variant, df in mbom_dfs.items():
+    # Loop through each row in the dataframe
     for _, row in df.iterrows():
         src = row['Src Org']
         usr = row['Usr Org']
-        flow = 1  # Or determine the flow based on your data specifics
+        flow = 1  # Or use another column or calculation for the flow magnitude
 
-        # Assign unique indices to each organization
+        # Add source and user orgs to labels if they are not already there
         for org in [src, usr]:
             if org not in label_indices:
                 label_indices[org] = len(labels)
                 labels.append(org)
 
+        # Add the flow between the source and user orgs
         flows.append((label_indices[src], label_indices[usr], flow))
 
-# Preparing the Sankey diagram data
-sankey_flows = []
-sankey_labels = []
-for src, dst, flow in flows:
-    sankey_flows.append((src, dst, flow))
-    sankey_labels.append(labels[src])  # add source label
-    sankey_labels.append(labels[dst])  # add destination label
-
-# Draw the Sankey diagram
+# Generate the Sankey diagram
 sankey = Sankey()
 
-# Add flows to the Sankey diagram
-# Ensure each flow has a corresponding orientation, which can be 0 (left or right)
-orientations = [0] * len(sankey_flows)  # For simplicity, assuming all flows are left-to-right or right-to-left
-sankey.add(flows=sankey_flows, labels=sankey_labels, orientations=orientations)
+# Since we have the indices for each org in label_indices, we can directly use flows
+# orientations is not needed unless you want to specify the direction of each individual flow
+sankey.add(flows=flows, labels=labels)
 
-# Finish and show the Sankey diagram
+# Draw the Sankey diagram
 sankey.finish()
 plt.show()
