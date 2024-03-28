@@ -2,7 +2,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.sankey import Sankey
 
-# Sample structure of mbom_dfs
+# Example structure of mbom_dfs
 # mbom_dfs = {
 #     'variant1': pd.DataFrame({
 #         'PartNumber': [...],
@@ -17,7 +17,6 @@ from matplotlib.sankey import Sankey
 #     ...
 # }
 
-# Initialize lists for Sankey diagram data
 flows = []
 labels = []
 label_indices = {}
@@ -39,12 +38,15 @@ for variant, df in mbom_dfs.items():
         # Add the flow between the source and user orgs
         flows.append((label_indices[src], label_indices[usr], flow))
 
+# Define orientations for the Sankey diagram
+# For simplicity, set all orientations to 0 (horizontal flow), adjust as needed
+orientations = [0 for _ in flows]  # Now orientations and flows have the same length
+
 # Generate the Sankey diagram
 sankey = Sankey()
 
-# Since we have the indices for each org in label_indices, we can directly use flows
-# orientations is not needed unless you want to specify the direction of each individual flow
-sankey.add(flows=flows, labels=labels)
+# Add the flows, labels, and orientations to the diagram
+sankey.add(flows=flows, labels=labels, orientations=orientations)
 
 # Draw the Sankey diagram
 sankey.finish()
