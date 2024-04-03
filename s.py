@@ -1,53 +1,54 @@
-import pandas as pd
-import matplotlib.pyplot as plt
-from matplotlib.sankey import Sankey
+import simpy
+import random
+from datetime import datetime, timedelta
 
-# Example structure of mbom_dfs
-# mbom_dfs = {
-#     'variant1': pd.DataFrame({
-#         'PartNumber': [...],
-#         'Description': [...],
-#         'mbomID': [...],
-#         'ParentID': [...],
-#         'make/buy': [...],
-#         'Number of Children': [...],
-#         'Src Org': [...],
-#         'Usr Org': [...]
-#     }),
-#     ...
-# }
+# Simulation of the day's start
+today = datetime(datetime.now().year, datetime.now().month, datetime.now().day, hour=0, minute=0, second=0)
 
-flows = []
-labels = []
-label_indices = {}
+class Part(object):
+    def __init__(self, part_id, part_type, time_required, dependencies=[]):
+        self.part_id = part_id
+        self.part_type = part_type  # "MAKE" or "BUY"
+        self.time_required = time_required
+        self.dependencies = dependencies
+        self.is_ready = False if dependencies else True
 
-# Loop through each product variant in the dictionary
-for variant, df in mbom_dfs.items():
-    # Loop through each row in the dataframe
-    for _, row in df.iterrows():
-        src = row['Src Org']
-        usr = row['Usr Org']
-        flow = 1  # Or use another column or calculation for the flow magnitude
+    def __repr__(self):
+        return f"Part ID: {self.part_id}, Type: {self.part_type}, Time Required: {self.time_required}, Dependencies: {self.dependencies}"
 
-        # Add source and user orgs to labels if they are not already there
-        for org in [src, usr]:
-            if org not in label_indices:
-                label_indices[org] = len(labels)
-                labels.append(org)
+class Assembly(Part):
+    def __init__(self, part_id, time_required, dependencies=[]):
+        super().__init__(part_id, "MAKE", time_required, dependencies)
 
-        # Add the flow between the source and user orgs
-        flows.append((label_indices[src], label_indices[usr], flow))
+    def check_if_ready(self):
+        self.is_ready = all(dep.is_ready for dep in self.dependencies)
 
-# Define orientations for the Sankey diagram
-# For simplicity, set all orientations to 0 (horizontal flow), adjust as needed
-orientations = [0 for _ in flows]  # Now orientations and flows have the same length
+class Station(simpy.Resource):
+    def __init__(self, env, capacity=1):
+        super().__init__(env, capacity)
 
-# Generate the Sankey diagram
-sankey = Sankey()
+class ManufacturingProcess:
+    def __init__(self, env, mbom):
+        self.env = env
+        self.mbom = mbom  # This should be a structured representation of your MBOM
 
-# Add the flows, labels, and orientations to the diagram
-sankey.add(flows=flows, labels=labels, orientations=orientations)
+    def process_part(self, part):
+        yield self.env.timeout(part.time_required)
+        part.is_ready = True
+        print(f"Part {part.part_id} processed at {self.env.now}")
 
-# Draw the Sankey diagram
-sankey.finish()
-plt.show()
+def setup_simulation(env, mbom):
+    manufacturing_process = ManufacturingProcess(env, mbom)
+    for part in mbom:
+        if not part.dependencies:  # Start with parts that have no dependencies
+            env.process(manufacturing_process.process_part(part))
+
+# Simulation setup
+env = simpy.Environment()
+mbom = [
+    Part('P1', 'BUY', 2),
+    Part('P2', 'BUY', 4),
+    Assembly('A1', 5, dependencies=['P1', 'P2']),
+]
+setup_simulation(env, mbom)
+env.run(until=100)
