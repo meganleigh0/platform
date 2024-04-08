@@ -1,15 +1,23 @@
-# Load department data used for simulation input
-dep_df = pd.read_csv(os.path.join(project_root, "assets", "data", "department_data.csv"))
-dep_df['DepID'] = dep_df['DepID'].astype(str)
+import plotly.graph_objects as go
 
-# Merge dataframes using a left join to keep all entries in dep_df
-merged_df = pd.merge(dep_df, exp_df[['Department', 'DirectEmployee']], left_on='DepID', right_on='Department', how='left')
+source = [index for OrgA, OrgB, ...]  # indices of source nodes
+target = [index for Src1, Src2, ...]  # indices of target nodes
+value = [count of parts]  # values for each link
 
-# Update 'DirectHeads' only where new data is available, preserve existing otherwise
-dep_df['DirectHeads'] = merged_df['DirectEmployee'].combine_first(dep_df['DirectHeads']).astype(int)
+label = ["OrgA", "OrgB", ..., "Src1", "Src2", ...]  # labels for nodes
 
-# Now dep_df contains the updated department data
-try:
-    dep_df.to_csv(os.path.join("assets", "data", "department_data_updated.csv"), index=False)
-except Exception as e:
-    print(f"Error exporting department data: {e}")
+fig = go.Figure(data=[go.Sankey(
+    node=dict(
+        pad=15,
+        thickness=20,
+        line=dict(color="black", width=0.5),
+        label=label
+    ),
+    link=dict(
+        source=source,
+        target=target,
+        value=value
+    ))])
+
+fig.update_layout(title_text="Flow of parts from Usr Org to Src Org by Make/Buy status")
+fig.show()
