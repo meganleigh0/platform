@@ -1,23 +1,26 @@
-import plotly.graph_objects as go
+# Create a Sankey diagram for each Usr Org
+sankey_data = []
 
-source = [index for OrgA, OrgB, ...]  # indices of source nodes
-target = [index for Src1, Src2, ...]  # indices of target nodes
-value = [count of parts]  # values for each link
+for usr_org in df['Usr Org'].unique():
+    # Filter data for the current Usr Org
+    filtered_df = df[df['Usr Org'] == usr_org]
 
-label = ["OrgA", "OrgB", ..., "Src1", "Src2", ...]  # labels for nodes
+    # Count parts from each Src Org for the current Usr Org
+    count_by_src = filtered_df.groupby('Src Org').size().reset_index(name='Count')
 
-fig = go.Figure(data=[go.Sankey(
-    node=dict(
-        pad=15,
-        thickness=20,
-        line=dict(color="black", width=0.5),
-        label=label
-    ),
-    link=dict(
-        source=source,
-        target=target,
-        value=value
-    ))])
+    # Create data for the Sankey diagram
+    source = [0] * len(count_by_src)  # Source is always the Usr Org in this case
+    target = [1 + i for i in range(len(count_by_src))]  # Targets are the Src Orgs
+    value = count_by_src['Count'].tolist()
+    label = [usr_org] + count_by_src['Src Org'].tolist()
 
-fig.update_layout(title_text="Flow of parts from Usr Org to Src Org by Make/Buy status")
-fig.show()
+    sankey_data.append({
+        'usr_org': usr_org,
+        'source': source,
+        'target': target,
+        'value': value,
+        'label': label
+    })
+
+# Display an example of what the data looks like for the first Usr Org
+sankey_data[0]
