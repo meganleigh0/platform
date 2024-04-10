@@ -1,6 +1,9 @@
-# Convert dates to datetime
-df['Promise Date'] = pd.to_datetime(df['Promise Date'])
-df['Ship Date'] = pd.to_datetime(df['Ship Date'])
+# Convert to DataFrame
+df = pd.DataFrame(data)
+
+# Convert tuple dates to datetime
+df['Promise Date'] = df['Promise Date'].apply(lambda x: datetime(*x))
+df['Ship Date'] = df['Ship Date'].apply(lambda x: datetime(*x))
 
 # Calculate on-time performance
 df['On Time'] = df['Ship Date'] <= df['Promise Date']
