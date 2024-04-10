@@ -1,26 +1,18 @@
-# Create a Sankey diagram for each Usr Org
-sankey_data = []
+# Convert dates to datetime
+df['Promise Date'] = pd.to_datetime(df['Promise Date'])
+df['Ship Date'] = pd.to_datetime(df['Ship Date'])
 
-for usr_org in df['Usr Org'].unique():
-    # Filter data for the current Usr Org
-    filtered_df = df[df['Usr Org'] == usr_org]
+# Calculate on-time performance
+df['On Time'] = df['Ship Date'] <= df['Promise Date']
 
-    # Count parts from each Src Org for the current Usr Org
-    count_by_src = filtered_df.groupby('Src Org').size().reset_index(name='Count')
+# Count the number of on-time and delayed vehicles
+summary = df['On Time'].value_counts()
 
-    # Create data for the Sankey diagram
-    source = [0] * len(count_by_src)  # Source is always the Usr Org in this case
-    target = [1 + i for i in range(len(count_by_src))]  # Targets are the Src Orgs
-    value = count_by_src['Count'].tolist()
-    label = [usr_org] + count_by_src['Src Org'].tolist()
-
-    sankey_data.append({
-        'usr_org': usr_org,
-        'source': source,
-        'target': target,
-        'value': value,
-        'label': label
-    })
-
-# Display an example of what the data looks like for the first Usr Org
-sankey_data[0]
+# Visualize the results
+plt.figure(figsize=(8, 5))
+summary.plot(kind='bar')
+plt.title('On-time vs. Delayed Shipments')
+plt.xlabel('On Time')
+plt.ylabel('Number of Vehicles')
+plt.xticks([0, 1], ['On Time', 'Delayed'], rotation=0)
+plt.show()
