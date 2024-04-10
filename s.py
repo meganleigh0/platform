@@ -3,17 +3,17 @@ import matplotlib.pyplot as plt
 
 # Assuming df is your DataFrame after the previous operations
 
-# Extract the month from the Ship Date
-df['Ship Month'] = df['Ship Date'].dt.month
+# Create a column combining year and month from the Ship Date
+df['Year-Month'] = df['Ship Date'].dt.to_period('M')
 
-# Group by the extracted month and count the number of vehicles
-monthly_shipments = df.groupby('Ship Month')['Vehicle Number'].count()
+# Group by the new Year-Month column and count the number of vehicles
+monthly_yearly_shipments = df.groupby('Year-Month')['Vehicle Number'].count()
 
 # Visualize the results
-plt.figure(figsize=(10, 6))
-monthly_shipments.plot(kind='bar')
-plt.title('Number of Vehicles Shipped Each Month')
-plt.xlabel('Month')
+plt.figure(figsize=(12, 8))
+monthly_yearly_shipments.plot(kind='bar')
+plt.title('Number of Vehicles Shipped Each Month and Year')
+plt.xlabel('Month and Year')
 plt.ylabel('Number of Vehicles')
-plt.xticks(rotation=0)
+plt.xticks(rotation=45)
 plt.show()
