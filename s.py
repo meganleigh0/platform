@@ -1,39 +1,23 @@
-import pandas as pd
-import matplotlib.pyplot as plt
+### Q1 Summary: UI and Manufacturing Model Developments
 
-# Assuming status is your dictionary with program names as keys and DataFrames as values
+The first quarter of the year has been marked by significant advancements in the development of a comprehensive UI and backend for our manufacturing model. The key focus has been on enhancing the simulation capabilities, refining class definitions, and integrating operational analytics.
 
-# Initialize an empty list to store the processed DataFrames
-processed_data = []
+#### January:
+The team successfully created a new branch for UI development, focusing on a demo application with Streamlit. Significant features include:
+- A **Production Schedule Simulator Dashboard** displaying Gantt charts and plant utilization rates, designed using Plotly.
+- A **Vehicle View Layout** to monitor station utilization and workflow times for vehicle assemblies.
+- Updated **Class Definitions** for Hull/Turret structures and the Product class, improving resource transition handling and data aggregation capabilities.
 
-# Iterate through each program in the dictionary
-for program_name, df in status.items():
-    # Copy the DataFrame to avoid modifying the original
-    temp_df = df.copy()
-    
-    # Add a column for the program name
-    temp_df['Program'] = program_name
-    
-    # Create a column combining year and month from the Ship Date
-    temp_df['Year-Month'] = temp_df['Ship Date'].dt.to_period('M')
-    
-    # Group by the new Year-Month column and count the number of vehicles
-    monthly_data = temp_df.groupby(['Year-Month', 'Program'])['Vehicle Number'].count().reset_index()
-    
-    # Add the processed data to the list
-    processed_data.append(monthly_data)
+#### February:
+Developments in February focused on refining operational simulations and risk management:
+- A **Process Flow Diagram** was created to outline the simulation process, including internal steps for Plant 1 and Plant 3.
+- **Risk Management** strategies were implemented through station assembly criticality mapping.
+- **Unit Tests** were developed for critical classes to ensure robustness in core functionalities.
 
-# Concatenate all the processed DataFrames into one
-combined_data = pd.concat(processed_data)
+#### March:
+March saw the integration of the MBOM Pipeline and enhancements in scheduling:
+- **MBOM Pipeline Integration** into the scheduling system, improving the model's handling of manufacturing data and allowing more flexible shift schedules for different plants.
+- **Operations Analysis** was extended to include detailed mappings and efficiency studies, crucial for optimizing manufacturing outputs.
+- **Station Head Capacities** were defined and tested, ensuring optimal resource allocation across operations.
 
-# Pivot the data for the stacked bar chart
-pivot_data = combined_data.pivot(index='Year-Month', columns='Program', values='Vehicle Number')
-
-# Plot the stacked bar chart
-pivot_data.plot(kind='bar', stacked=True, figsize=(15, 10))
-plt.title('Number of Vehicles Shipped Each Month and Year by Program')
-plt.xlabel('Month and Year')
-plt.ylabel('Number of Vehicles')
-plt.xticks(rotation=45)
-plt.legend(title='Program')
-plt.show()
+These developments not only enhance our model's accuracy and efficiency but also position us to better meet production demands through detailed simulations and analytics. Moving forward, the team will focus on further integrations and testing to ensure seamless functionality across all manufacturing processes.
