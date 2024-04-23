@@ -1,58 +1,11 @@
-Simulation 1: Industrial Manufacturing Process
-Core Components:
-JSMC (Joint System Manufacturing Center)
-Manages overall simulation of plants (Plant1 and Plant3).
-Components:
-Plant1 Simulation
-Plant3 Simulation
-Plant1
-Models the first phase of the manufacturing process.
-Components:
-List of reclaimed structures, hulls, turrets, fabrication parts.
-Process methods for induction, fabrication, and transfer of completed parts.
-Plant3
-Handles specific processing lines for hulls and turrets, representing a more refined manufacturing phase.
-Methods:
-Hull line process
-Turret line process
-Models (Parts, Assemblies, Products)
-Part
-Basic building block in the manufacturing process.
-Attributes like part ID, quantity, station.
-Assembly
-Complex part consisting of other parts or assemblies.
-Processes children and operations based on readiness and station alignment.
-Product
-Consists of multiple parts and assemblies needed to complete a vehicle or other end products.
-Manages the final assembly and vehicle processes.
-ReclaimedStructure
-Represents reusable components within the factory setting.
-Transitions into specific hull and turret components upon processing.
-Interaction Flow:
-JSMC initiates and manages the workflow between Plant1 and Plant3, ensuring parts move through the necessary manufacturing processes.
-Assemblies and Parts within Products are processed in sequential plants and stages, transitioning through states from reclaimed structures to completed assemblies.
-Simulation 2: Data Processing in a Project Environment
-Core Components:
-DataframeSource
-Initiates the flow of data blocks (tasks) through the system.
-Components:
-Generates blocks based on inter-arrival times.
-Manages the initiation and handoff of blocks to processes based on scheduling.
-Process
-Represents a step in the data/task processing workflow.
-Components:
-Queues for holding incoming blocks.
-Subprocesses for handling blocks in parallel.
-Management of inventory and busy states to simulate capacity and processing limits.
-Sink
-Collects and finalizes blocks after they have passed through all required processes.
-Components:
-Receives blocks, records arrivals and waits.
-Compiles and manages results data for analysis.
-DataframePart
-Represents an individual block of data or a project task.
-Contains specific project and location codes, activity data, and simulation results.
-Interaction Flow:
-DataframeSource generates and dispatches DataframeParts at scheduled intervals to the first Process.
-Processes handle parts based on their subprocess capacity, passing parts along to subsequent processes or the Sink.
-The Sink collects completed parts, gathering data for performance analysis and system optimization.
+eature/Component	Simulation 1: Industrial Manufacturing Process	Simulation 2: Data Processing in a Project Environment
+Domain	Manufacturing and assembly processes in an industrial setting.	Task and data flow management in project-based environments.
+Core Components	- Plants (e.g., Plant1, Plant3)<br>- JSMC<br>- Parts and Assemblies<br>- Products	- DataframeSource<br>- Process<br>- Sink<br>- DataframePart
+Process Management	- Detailed classes for each plant and part type.<br>- Processes are managed through specific plant operations.	- Data blocks flow through processes.<br>- Processes manage queues and subprocesses for data handling.
+Resource Management	- Uses SimPy Resource for managing machine and manpower limits.<br>- Explicit representation of each manufacturing resource.	- Generalized process classes manage resources implicitly through store capacities and limits.
+Data Handling	- Less emphasis on real-time data handling.<br>- More static and structured based on predefined BOMs.	- Highly dynamic, based on real-time generation and processing of data blocks.
+Scheduling	- More static, based on manufacturing steps and BOM hierarchy.<br>- Batch processing based on station order.	- Dynamic scheduling based on inter-arrival times and processing completion.
+Flexibility	- Less flexible, designed for specific manufacturing setups.<br>- Running individual stations not emphasized.	- High flexibility, allows for individual process testing and adjustment.
+Output and Analysis	- Focus on production efficiency and bottleneck analysis.<br>- Outputs generally for optimizing manufacturing processes.	- Detailed logs of wait times, process times, and block movements.<br>- Outputs focus on optimizing data flow and minimizing delays.
+Feedback Mechanisms	- Limited to within predefined process flows.<br>- Feedback generally used for quality checks and error handling.	- Explicit feedback loops where output of one process can affect the input of another.
+Scalability	- Scalable within the framework of manufacturing operations.<br>- Adjustments require changes in plant or resource setup.	- Easily scalable by adding or modifying processes.<br>- Adjustments can be made dynamically to process definitions.
