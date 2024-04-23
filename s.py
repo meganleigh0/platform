@@ -1,11 +1,12 @@
-eature/Component	Simulation 1: Industrial Manufacturing Process	Simulation 2: Data Processing in a Project Environment
-Domain	Manufacturing and assembly processes in an industrial setting.	Task and data flow management in project-based environments.
-Core Components	- Plants (e.g., Plant1, Plant3)<br>- JSMC<br>- Parts and Assemblies<br>- Products	- DataframeSource<br>- Process<br>- Sink<br>- DataframePart
-Process Management	- Detailed classes for each plant and part type.<br>- Processes are managed through specific plant operations.	- Data blocks flow through processes.<br>- Processes manage queues and subprocesses for data handling.
-Resource Management	- Uses SimPy Resource for managing machine and manpower limits.<br>- Explicit representation of each manufacturing resource.	- Generalized process classes manage resources implicitly through store capacities and limits.
-Data Handling	- Less emphasis on real-time data handling.<br>- More static and structured based on predefined BOMs.	- Highly dynamic, based on real-time generation and processing of data blocks.
-Scheduling	- More static, based on manufacturing steps and BOM hierarchy.<br>- Batch processing based on station order.	- Dynamic scheduling based on inter-arrival times and processing completion.
-Flexibility	- Less flexible, designed for specific manufacturing setups.<br>- Running individual stations not emphasized.	- High flexibility, allows for individual process testing and adjustment.
-Output and Analysis	- Focus on production efficiency and bottleneck analysis.<br>- Outputs generally for optimizing manufacturing processes.	- Detailed logs of wait times, process times, and block movements.<br>- Outputs focus on optimizing data flow and minimizing delays.
-Feedback Mechanisms	- Limited to within predefined process flows.<br>- Feedback generally used for quality checks and error handling.	- Explicit feedback loops where output of one process can affect the input of another.
-Scalability	- Scalable within the framework of manufacturing operations.<br>- Adjustments require changes in plant or resource setup.	- Easily scalable by adding or modifying processes.<br>- Adjustments can be made dynamically to process definitions.
+| Feature/Component       | Simulation 1: Industrial Manufacturing Process                | Simulation 2: Data Processing in a Project Environment  |
+|-------------------------|--------------------------------------------------------------|--------------------------------------------------------|
+| Domain                  | Manufacturing and assembly processes in an industrial setting | Task and data flow management in project-based environments |
+| Core Components         | - Plants (e.g., Plant1, Plant3)                              | - DataframeSource<br>- Process<br>- Sink<br>- DataframePart |
+| Process Management      | - Detailed classes for each plant and part type.<br>- Processes are managed through specific plant operations. | - Data blocks flow through processes.<br>- Processes manage queues and subprocesses for data handling. |
+| Resource Management     | - Uses SimPy Resource for managing machine and manpower limits.<br>- Explicit representation of each manufacturing resource. | - Generalized process classes manage resources implicitly through store capacities and limits. |
+| Data Handling           | - Less emphasis on real-time data handling.<br>- More static and structured based on predefined BOMs. | - Highly dynamic, based on real-time generation and processing of data blocks. |
+| Scheduling              | - More static, based on manufacturing steps and BOM hierarchy.<br>- Batch processing based on station order. | - Dynamic scheduling based on inter-arrival times and processing completion. |
+| Flexibility             | - Less flexible, designed for specific manufacturing setups.<br>- Running individual stations not emphasized. | - High flexibility, allows for individual process testing and adjustment. |
+| Output and Analysis     | - Focus on production efficiency and bottleneck analysis.<br>- Outputs generally for optimizing manufacturing processes. | - Detailed logs of wait times, process times, and block movements.<br>- Outputs focus on optimizing data flow and minimizing delays. |
+| Feedback Mechanisms     | - Limited to within predefined process flows.<br>- Feedback generally used for quality checks and error handling. | - Explicit feedback loops where output of one process can affect the input of another. |
+| Scalability             | - Scalable within the framework of manufacturing operations.<br>- Adjustments require changes in plant or resource setup. | - Easily scalable by adding or modifying processes.<br>- Adjustments can be made dynamically to process definitions. |
