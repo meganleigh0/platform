@@ -1,39 +1,58 @@
-import pandas as pd
-import plotly.graph_objects as go
-
-# Aggregate data to get counts from Src Org to Usr Org
-flow_counts = mbom.groupby(['Src Org', 'Usr Org']).size().reset_index(name='Count')
-
-# Create lists of unique orgs for labeling
-all_orgs = pd.concat([flow_counts['Src Org'], flow_counts['Usr Org']]).unique()
-
-# Create a mapping from org names to indices
-org_index = {org: i for i, org in enumerate(all_orgs)}
-
-# Map the org names in Src Org and Us Org to their respective indices
-flow_counts['Source'] = flow_counts['Src Org'].map(org_index)
-flow_counts['Target'] = flow_counts['Usr Org'].map(org_index)
-flow_counts['Value'] = flow_counts['Count']
-
-# Create the Sankey diagram
-fig = go.Figure(data=[go.Sankey(
-    node=dict(
-        pad=50,
-        thickness=10,  # Adjust thickness here
-        line=dict(color="black", width=0.5),  # Adjust line color and width here
-        label=all_orgs,
-    ),
-    link=dict(
-        source=flow_counts['Source'],
-        target=flow_counts['Target'],
-        value=flow_counts['Value'],
-        color="blue",  # Adjust link color here
-    )
-)])
-
-# Update layout with customizations
-fig.update_layout(
-    title_text="Flow of Parts Between Organizations",
-    font_size=12,  # Adjust font size here
-)
-fig.show()
+Simulation 1: Industrial Manufacturing Process
+Core Components:
+JSMC (Joint System Manufacturing Center)
+Manages overall simulation of plants (Plant1 and Plant3).
+Components:
+Plant1 Simulation
+Plant3 Simulation
+Plant1
+Models the first phase of the manufacturing process.
+Components:
+List of reclaimed structures, hulls, turrets, fabrication parts.
+Process methods for induction, fabrication, and transfer of completed parts.
+Plant3
+Handles specific processing lines for hulls and turrets, representing a more refined manufacturing phase.
+Methods:
+Hull line process
+Turret line process
+Models (Parts, Assemblies, Products)
+Part
+Basic building block in the manufacturing process.
+Attributes like part ID, quantity, station.
+Assembly
+Complex part consisting of other parts or assemblies.
+Processes children and operations based on readiness and station alignment.
+Product
+Consists of multiple parts and assemblies needed to complete a vehicle or other end products.
+Manages the final assembly and vehicle processes.
+ReclaimedStructure
+Represents reusable components within the factory setting.
+Transitions into specific hull and turret components upon processing.
+Interaction Flow:
+JSMC initiates and manages the workflow between Plant1 and Plant3, ensuring parts move through the necessary manufacturing processes.
+Assemblies and Parts within Products are processed in sequential plants and stages, transitioning through states from reclaimed structures to completed assemblies.
+Simulation 2: Data Processing in a Project Environment
+Core Components:
+DataframeSource
+Initiates the flow of data blocks (tasks) through the system.
+Components:
+Generates blocks based on inter-arrival times.
+Manages the initiation and handoff of blocks to processes based on scheduling.
+Process
+Represents a step in the data/task processing workflow.
+Components:
+Queues for holding incoming blocks.
+Subprocesses for handling blocks in parallel.
+Management of inventory and busy states to simulate capacity and processing limits.
+Sink
+Collects and finalizes blocks after they have passed through all required processes.
+Components:
+Receives blocks, records arrivals and waits.
+Compiles and manages results data for analysis.
+DataframePart
+Represents an individual block of data or a project task.
+Contains specific project and location codes, activity data, and simulation results.
+Interaction Flow:
+DataframeSource generates and dispatches DataframeParts at scheduled intervals to the first Process.
+Processes handle parts based on their subprocess capacity, passing parts along to subsequent processes or the Sink.
+The Sink collects completed parts, gathering data for performance analysis and system optimization.
