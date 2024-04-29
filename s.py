@@ -1,49 +1,59 @@
-- **Simulation 1: Industrial Manufacturing Process**
-  - **Core Components**:
-    - **JSMC (Joint System Manufacturing Center)**: Manages overall simulation of plants (Plant1 and Plant3).
-  - **Components**:
-    - **Plant1 Simulation**
-    - **Plant3 Simulation**
-  - **Plant1**:
-    - Models the first phase of the manufacturing process.
-      - **Components**:
-        - List of reclaimed structures, hulls, turrets, fabrication parts.
-        - Process methods for induction, fabrication, and transfer of completed parts.
-  - **Plant3**:
-    - Handles specific processing lines for hulls and turrets, representing a more refined manufacturing phase.
-      - **Methods**:
-        - Hull line process
-        - Turret line process
-  - **Models (Parts, Assemblies, Products)**:
-    - **Part**: Basic building block in the manufacturing process. Attributes like part ID, quantity, station.
-    - **Assembly**: Complex part consisting of other parts or assemblies. Processes children and operations based on readiness and station alignment.
-    - **Product**: Consists of multiple parts and assemblies needed to complete a vehicle or other end products. Manages the final assembly and vehicle processes.
-    - **ReclaimedStructure**: Represents reusable components within the factory setting. Transitions into specific hull and turret components upon processing.
-  - **Interaction Flow**:
-    - JSMC initiates and manages the workflow between Plant1 and Plant3, ensuring parts move through the necessary manufacturing processes.
-    - Assemblies and Parts within Products are processed in sequential plants and stages, transitioning through states from reclaimed structures to completed assemblies.
-- **Simulation 2: Data Processing in a Project Environment**
-  - **Core Components**:
-    - **DataframeSource**: Initiates the flow of data blocks (tasks) through the system.
-  - **Components**:
-    - Generates blocks based on inter-arrival times.
-    - Manages the initiation and handoff of blocks to processes based on scheduling.
-  - **Process**:
-    - Represents a step in the data/task processing workflow.
-      - **Components**:
-        - Queues for holding incoming blocks.
-        - Subprocesses for handling blocks in parallel.
-        - Management of inventory and busy states to simulate capacity and processing limits.
-  - **Sink**:
-    - Collects and finalizes blocks after they have passed through all required processes.
-      - **Components**:
-        - Receives blocks, records arrivals and waits.
-        - Compiles and manages results data for analysis.
-  - **DataframePart**:
-    - Represents an individual block of data or a project task. Contains specific project and location codes, activity data, and simulation results.
-  - **Interaction Flow**:
-    - DataframeSource generates and dispatches DataframeParts at scheduled intervals to the first Process.
-    - Processes handle parts based on their subprocess capacity, passing parts along to subsequent processes or the Sink.
-    - The Sink collects completed parts, gathering data for performance analysis and system optimization.
-- **Summary**:
-  - Simulation 1 revolves around a detailed, step-by-step manufacturing process with various components contributing to the assembly of final products. Simulation 2, however, focuses on the flow of data or tasks through a system, emphasizing timing, resource allocation, and performance metrics. Each schema is structured to cater to the specific analytical needs and operational scenarios of the respective simulations.
+import pandas as pd
+
+def evaluate_production_feasibility(df, production_plan):
+    # Calculate total required hours per department across all variants
+    total_hours = df.groupby(['DepID', 'Name', 'DirectHeads', 'Plant']).apply(
+        lambda x: sum(x['Hours'] * production_plan.get(x['Variant'], 0))
+    ).reset_index(name='TotalRequiredHours')
+
+    # Calculate potential hours (assuming 160 hours per month per head)
+    total_hours['HoursPotential'] = total_hours['DirectHeads'] * 160
+
+    # Calculate feasibility
+    total_hours['Feasibility'] = total_hours['HoursPotential'] / total_hours['TotalRequiredHours']
+
+    # Identify departments with feasibility issues
+    underperforming_departments = total_hours[total_hours['Feasibility'] < 1]
+
+    # Sort departments by feasibility to find the lowest outputting departments
+    lowest_outputting_departments = underperforming_departments.sort_values('Feasibility')
+
+    # Group by plant to see potential for reallocating heads
+    plant_grouping = lowest_outputting_departments.groupby('Plant').apply(
+        lambda x: x.sort_values(by='Feasibility')
+    ).reset_index(drop=True)
+
+    # Print lowest outputting departments
+    print("Lowest outputting departments:")
+    print(lowest_outputting_departments)
+
+    # Print group by plant for insight on head reallocation
+    print("\nInsights for head reallocation within plants:")
+    print(plant_grouping)
+
+    # Provide recommendations
+    print("\nRecommendations:")
+    if not underperforming_departments.empty:
+        print("Consider reallocating resources or increasing headcounts in the following departments:")
+        for index, row in lowest_outputting_departments.iterrows():
+            print(f"- {row['Name']} in Plant {row['Plant']} (Feasibility: {row['Feasibility']:.2f})")
+    else:
+        print("All departments are meeting their production targets.")
+
+# Sample DataFrame creation (replace this with your actual DataFrame)
+data = {
+    'Hours': [1, 2, 3, 4, 1, 2],
+    'Operation Description': ['Assemble', 'Test', 'Pack', 'Assemble', 'Test', 'Pack'],
+    'DepID': [101, 101, 102, 103, 103, 104],
+    'Name': ['Assembly', 'Assembly', 'Packing', 'Assembly', 'Assembly', 'Packing'],
+    'DirectHeads': [10, 10, 15, 20, 20, 15],
+    'Plant': ['A', 'A', 'A', 'B', 'B', 'B'],
+    'Variant': ['A', 'A', 'A', 'B', 'B', 'B']
+}
+df = pd.DataFrame(data)
+
+# Example production plan
+production_plan = {'A': 2, 'B': 1}
+
+# Run the function
+evaluate_production_feasibility(df, production_plan)
