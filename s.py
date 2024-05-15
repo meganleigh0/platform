@@ -11,17 +11,14 @@ df = pd.DataFrame(data)
 # Creating the plot
 fig = go.Figure()
 
-# Adding traces for each column
-for col in df.columns:
-    if col != 'Heads':
-        fig.add_trace(go.Scatter(x=df['Heads'], y=df[col], mode='markers+lines', name=col))
+# Adding trace for Actual Hours vs. Day
+fig.add_trace(go.Bar(x=df.index, y=df['Actual Hours'], name='Actual Hours'))
 
 # Updating layout for better visualization
-fig.update_layout(title='Work Data Visualization',
-                  xaxis_title='Heads',
-                  yaxis_title='Values',
-                  legend_title='Metrics',
-                  yaxis=dict(tickformat='.2f'))
+fig.update_layout(title='Utilization by Day',
+                  xaxis_title='Day',
+                  yaxis_title='Actual Hours',
+                  legend_title='Metrics')
 
 # Showing the plot
 fig.show()
