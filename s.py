@@ -1,29 +1,27 @@
-import simpy
+import plotly.graph_objects as go
+import pandas as pd
 
-class Department:
-    def __init__(self, env, name, num_employees):
-        self.env = env
-        self.name = name
-        self.num_employees = num_employees
-        self.worker_resource = simpy.Resource(env, capacity=num_employees)
+# Creating the data frame
+data = {'Heads': [35, 36, 75],
+        'Manpower': [280, 288, 600],
+        'Actual Hours': [98, 121, 314],
+        'Efficiency': [0.35, 0.42, 0.52]}
+df = pd.DataFrame(data)
 
-env = simpy.Environment()
-department1 = Department(env, 'Department 1', 10)
-department2 = Department(env, 'Department 2', 10)
-department3 = Department(env, 'Department 3', 10)
-def employee_behavior(env, department, employee_id):
-    with department.worker_resource.request() as request:
-        yield request
-        print(f'Employee {employee_id} in {department.name} starts working at {env.now}')
-        yield env.timeout(10)  # Simulate work time
-        print(f'Employee {employee_id} in {department.name} finishes work at {env.now}')
-        
-        def create_employees(env, department):
-    for employee_id in range(department.num_employees):
-        env.process(employee_behavior(env, department, employee_id))
+# Creating the plot
+fig = go.Figure()
 
-env.process(create_employees(env, department1))
-env.process(create_employees(env, department2))
-env.process(create_employees(env, department3))
+# Adding traces for each column
+for col in df.columns:
+    if col != 'Heads':
+        fig.add_trace(go.Scatter(x=df['Heads'], y=df[col], mode='markers+lines', name=col))
 
-env.run(until=50)  # Run simulation for 50 time units
+# Updating layout for better visualization
+fig.update_layout(title='Work Data Visualization',
+                  xaxis_title='Heads',
+                  yaxis_title='Values',
+                  legend_title='Metrics',
+                  yaxis=dict(tickformat='.2f'))
+
+# Showing the plot
+fig.show()
