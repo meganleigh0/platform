@@ -1,5 +1,6 @@
 import plotly.graph_objects as go
 import pandas as pd
+from sklearn.preprocessing import MinMaxScaler
 
 # Creating the data frame
 data = {'Heads': [35, 36, 75],
@@ -8,22 +9,24 @@ data = {'Heads': [35, 36, 75],
         'Efficiency': [0.35, 0.42, 0.52]}
 df = pd.DataFrame(data)
 
+# Normalize the data
+scaler = MinMaxScaler()
+normalized_data = scaler.fit_transform(df)
+
 # Creating the plot
 fig = go.Figure()
 
-# Adding traces for each metric with separate y-axes
-fig.add_trace(go.Scatter(x=df.index, y=df['Heads'], mode='lines+markers', name='Heads', yaxis='y1'))
-fig.add_trace(go.Scatter(x=df.index, y=df['Manpower'], mode='lines+markers', name='Manpower', yaxis='y2'))
-fig.add_trace(go.Scatter(x=df.index, y=df['Actual Hours'], mode='lines+markers', name='Actual Hours', yaxis='y3'))
-fig.add_trace(go.Scatter(x=df.index, y=df['Efficiency'], mode='lines+markers', name='Efficiency', yaxis='y4'))
+# Adding traces for each metric
+fig.add_trace(go.Bar(x=df.index, y=normalized_data[:, 0], name='Heads'))
+fig.add_trace(go.Bar(x=df.index, y=normalized_data[:, 1], name='Manpower'))
+fig.add_trace(go.Bar(x=df.index, y=normalized_data[:, 2], name='Actual Hours'))
+fig.add_trace(go.Bar(x=df.index, y=normalized_data[:, 3], name='Efficiency'))
 
 # Updating layout for better visualization
-fig.update_layout(title='Work Data by Day',
+fig.update_layout(barmode='group',
+                  title='Normalized Work Data by Day',
                   xaxis_title='Day',
-                  yaxis=dict(title='Heads', side='left', overlaying=False),
-                  yaxis2=dict(title='Manpower', side='left', overlaying='y', anchor='free', position=0.05),
-                  yaxis3=dict(title='Actual Hours', side='right', overlaying=False, anchor='free', position=0.95),
-                  yaxis4=dict(title='Efficiency', side='right', overlaying='y', anchor='free', position=0.95),
+                  yaxis_title='Normalized Values',
                   legend_title='Metrics')
 
 # Showing the plot
