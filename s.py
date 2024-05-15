@@ -1,33 +1,29 @@
-import plotly.graph_objects as go
-import pandas as pd
+import simpy
 
-# Sample data creation (replace this with your actual dataframe)
-data = {
-    'Department1': [10, 15, 9, 7],
-    'Department2': [12, 9, 7, 5],
-    'Department3': [5, 3, 2, 4]
-}
-df = pd.DataFrame(data, index=pd.Index([1, 2, 3, 4], name='Day'))
+class Department:
+    def __init__(self, env, name, num_employees):
+        self.env = env
+        self.name = name
+        self.num_employees = num_employees
+        self.worker_resource = simpy.Resource(env, capacity=num_employees)
 
-# Create a figure with plotly
-fig = go.Figure()
+env = simpy.Environment()
+department1 = Department(env, 'Department 1', 10)
+department2 = Department(env, 'Department 2', 10)
+department3 = Department(env, 'Department 3', 10)
+def employee_behavior(env, department, employee_id):
+    with department.worker_resource.request() as request:
+        yield request
+        print(f'Employee {employee_id} in {department.name} starts working at {env.now}')
+        yield env.timeout(10)  # Simulate work time
+        print(f'Employee {employee_id} in {department.name} finishes work at {env.now}')
+        
+        def create_employees(env, department):
+    for employee_id in range(department.num_employees):
+        env.process(employee_behavior(env, department, employee_id))
 
-# Add a bar chart to the figure for each department
-for department in df.columns:
-    fig.add_trace(go.Bar(
-        x=df.index,
-        y=df[department],
-        name=department
-    ))
+env.process(create_employees(env, department1))
+env.process(create_employees(env, department2))
+env.process(create_employees(env, department3))
 
-# Update layout for a stacked bar chart
-fig.update_layout(
-    barmode='stack',
-    title='Manpower Loading Chart',
-    xaxis_title='Day',
-    yaxis_title='Hours',
-    legend_title='Department'
-)
-
-# Show the figure
-fig.show()
+env.run(until=50)  # Run simulation for 50 time units
