@@ -1,65 +1,34 @@
-import pandas as pd
+import csv
 
-# Assuming vehicle_a_mboms and vehicle_s_mboms are your dictionaries containing the MBOM dataframes
+# Read MBOM data from mbom.csv
+mbom_data = {}
+with open('mbom.csv', newline='') as mbom_file:
+    reader = csv.DictReader(mbom_file)
+    for row in reader:
+        mbom_data[row['PartNumber']] = row
 
-def prepare_sankey_data(mboms):
-    data = []
-    for variant, df in mboms.items():
-        for index, row in df.iterrows():
-            data.append({
-                'source': row['Src Org'],
-                'target': row['Usr Org'],
-                'value': row['Qty'],
-                'variant': variant
-            })
-    return data
+# Read Operation Sheet data from operation_sheet.csv
+operation_data = {}
+with open('operation_sheet.csv', newline='') as operation_file:
+    reader = csv.DictReader(operation_file)
+    for row in reader:
+        operation_data[row['PlanNumber']] = row
 
-data_a = prepare_sankey_data(vehicle_a_mboms)
-data_s = prepare_sankey_data(vehicle_s_mboms)
-
-# Combine data from both vehicles
-sankey_data = data_a + data_s
-
-def get_nodes_links(data):
-    unique_orgs = set()
-    for item in data:
-        unique_orgs.update([item['source'], item['target']])
-    
-    nodes = list(unique_orgs)
-    links = {
-        'source': [],
-        'target': [],
-        'value': [],
-        'color': [],  # Optional, to color by variant
+# Create part_operation_links based on FacilityID
+part_operation_links = {}
+for part_number, part_data in mbom_data.items():
+    facility_id = int(input(f"Enter FacilityID for PartNumber {part_number}: "))  # User input for FacilityID
+    part_operation_links[part_number] = {
+        'FacilityID': facility_id,
+        'PlanNumbers': []  # Initialize empty list for PlanNumbers
     }
-    
-    node_indices = {node: i for i, node in enumerate(nodes)}
-    for item in data:
-        links['source'].append(node_indices[item['source']])
-        links['target'].append(node_indices[item['target']])
-        links['value'].append(item['value'])
-        links['color'].append(item['variant'])  # This will be used to map colors to variants
-    
-    return nodes, links
 
-nodes, links = get_nodes_links(sankey_data)
+# Populate PlanNumbers based on FacilityID
+for plan_number, operation_data in operation_data.items():
+    facility_id = int(operation_data['FacilityID'])
+    for part_number, part_link_data in part_operation_links.items():
+        if part_link_data['FacilityID'] == facility_id:
+            part_link_data['PlanNumbers'].append(plan_number)
 
-import plotly.graph_objects as go
-
-fig = go.Figure(data=[go.Sankey(
-    node=dict(
-        pad=15,
-        thickness=20,
-        line=dict(color="black", width=0.5),
-        label=nodes,
-        color='blue'  # Default color, modify as needed
-    ),
-    link=dict(
-        source=links['source'],  # indices correspond to labels, eg A1, A2, A2, B1, ...
-        target=links['target'],
-        value=links['value'],
-        color=links['color']  # Optional, to color by variant
-    ))])
-
-fig.update_layout(title_text="Sankey Diagram for Vehicle Parts Flow", font_size=10)
-fig.show()
+# Print the created part_operation_links
+print(part_operation_links)
