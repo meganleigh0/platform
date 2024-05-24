@@ -12,10 +12,14 @@ data = {
     'Children': [['101', '102'], [], []],
     'Descendants': [['101', '102'], [], []],
     'Facility': ['Main Plant', 'Feeder Plant 1', 'Main Plant'],
-    'Source': ['Main Plant', 'Main Plant', 'Main Plant']
+    'Source': ['Main Plant', 'Main Plant', 'Feeder Plant 1']
 }
 
 df = pd.DataFrame(data)
+
+# Adjusting data to avoid self loops where not meaningful
+# Filtering out rows where Facility and Source are the same
+df = df[df['Facility'] != df['Source']]
 
 # Group data to summarize flows
 sankey_data = df.groupby(['Facility', 'Source'])['Qty'].sum().reset_index()
