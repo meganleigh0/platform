@@ -1,27 +1,54 @@
-# Initialize a directed graph
-G = nx.DiGraph()
+import pandas as pd
+import plotly.graph_objects as go
 
-# Add nodes and edges
-for idx, row in df.iterrows():
-    G.add_node(row['Facility'], color='cyan', size=row['Qty']*100)
-    G.add_node(row['Source'], color='lightblue', size=row['Qty']*100)
-    G.add_edge(row['Facility'], row['Source'], weight=row['Qty'])
+# Example DataFrame
+data = {
+    'mbomID': [1, 2, 3],
+    'ParentID': [0, 1, 1],
+    'PartNumber': ['100', '101', '102'],
+    'Description': ['Assembly', 'Part A', 'Part B'],
+    'Qty': [100, 200, 150],
+    'Make/Buy': ['Make', 'Buy', 'Make'],
+    'Children': [['101', '102'], [], []],
+    'Descendants': [['101', '102'], [], []],
+    'Facility': ['Main Plant', 'Feeder Plant 1', 'Main Plant'],
+    'Source': ['Main Plant', 'Main Plant', 'Main Plant']
+}
 
-# Drawing the graph
-pos = nx.spring_layout(G, seed=42)  # positions for all nodes
+df = pd.DataFrame(data)
 
-sizes = [G.nodes[node]['size'] for node in G.nodes]
-colors = [G.nodes[node]['color'] for node in G.nodes]
+# Group data to summarize flows
+sankey_data = df.groupby(['Facility', 'Source'])['Qty'].sum().reset_index()
 
-# nodes
-nx.draw_networkx_nodes(G, pos, node_size=sizes, node_color=colors, alpha=0.6)
+# Map labels to unique IDs
+labels = pd.concat([sankey_data['Facility'], sankey_data['Source']]).unique()
+label_dict = {label: i for i, label in enumerate(labels)}
 
-# edges
-edges = nx.draw_networkx_edges(G, pos, width=1.0, alpha=0.5)
+# Apply mappings to create source and target IDs
+sankey_data['SourceID'] = sankey_data['Facility'].map(label_dict)
+sankey_data['TargetID'] = sankey_data['Source'].map(label_dict)
 
-# labels
-nx.draw_networkx_labels(G, pos, font_size=12, font_family="sans-serif")
+# Node data
+node_trace = go.sankey.Node(
+    pad=15,  # Padding between nodes
+    thickness=20,  # Node thickness
+    line=dict(color="black", width=0.5),  # Border line
+    label=labels,
+    color="blue"
+)
 
-plt.title("Network Graph of MBOM Flow")
-plt.axis('off')  # Turn off the axis
-plt.show()
+# Link data (for flows between nodes)
+link_trace = go.sankey.Link(
+    source=sankey_data['SourceID'], 
+    target=sankey_data['TargetID'], 
+    value=sankey_data['Qty']
+)
+
+# Sankey diagram
+fig = go.Figure(data=[go.Sankey(
+    node=node_trace,
+    link=link_trace,
+    arrangement='snap')])
+
+fig.update_layout(title_text="Improved Material Flow Sankey Diagram", font_size=10)
+fig.show()
