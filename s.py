@@ -1,22 +1,34 @@
 import pandas as pd
 
 def calculate_daily_headcount(dept_logger, num_months):
-    # Convert log to DataFrame
     main_df = pd.DataFrame(dept_logger.log)
-    
-    # Convert Timestamp to hours and then to days by integer division
-    main_df['Day'] = main_df['Timestamp'] // 8
-    
-    # Convert lists in 'Interaction' to tuples (which are hashable)
-    main_df['Interaction'] = main_df['Interaction'].apply(tuple)
-    
-    # Group by day and department, then aggregate interactions into sets
-    grouped = main_df.groupby(['Day', 'Department'])['Interaction'].agg(lambda x: set(x)).reset_index()
-    
-    # Calculate headcount by multiplying the size of each set by 8 (man-hours per unique interaction)
-    grouped['Headcount'] = grouped['Interaction'].apply(len) * 8
-    
-    # Sum up headcount per day across all departments
-    daily_headcount = grouped.groupby('Day')['Headcount'].sum().tolist()
-    
-    return daily_headcount
+    daily_heads = []
+    end = num_months * 160  # based on number of months and hours per month
+
+    for k in range(int(end // 8)):
+        period_heads = {}
+        period_df = main_df[(main_df['Timestamp'] < 8*(k+1)) & (main_df['Timestamp'] > 8*k)]
+
+        # Iterate over each row to gather interactions by department
+        for _, row in period_df.iterrows():
+            department = row['Department']
+            interactions = row['Interaction']  # Assuming this is a list of hashable items
+            if department not in period_heads:
+                period_heads[department] = set()
+            # Flatten and add each unique interaction
+            period_heads[department].update(interactions)
+
+        # Calculate headcount per department and aggregate for the period
+        daily_headcount = 0
+        for department, interactions in period_heads.items():
+            headcount = 8 * len(interactions)  # Each unique interaction counted as 8 man-hours
+            daily_headcount += headcount
+
+        daily_heads.append(daily_headcount)
+
+    return daily_heads
+
+# Example usage
+dept_logger = pd.DataFrame()  # Replace with your actual DataFrame loading
+num_months = 20
+daily_headcounts = calculate_daily_headcount(dept_logger, num_months)
