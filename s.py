@@ -1,3 +1,14 @@
+import plotly.graph_objects as go
+import pandas as pd
+
+
+# Generate distinct colors for each variant
+num_variants = 13  # You mentioned having 13 different variants
+colors = px.colors.qualitative.Alphabet  # Use Plotly's Alphabet color scale, which has enough unique colors
+
+# Ensure there are enough colors by repeating the color list if necessary
+if len(colors) < num_variants:
+    colors = colors * (num_variants // len(colors) + 1)
 
 # Create a Sankey diagram for each family
 for family, variants in mbom_pipelines.items():
@@ -8,7 +19,8 @@ for family, variants in mbom_pipelines.items():
     for i, (variant, data) in enumerate(variants.items()):
         data['Variant'] = variant  # Tag each row with its variant
         all_data = pd.concat([all_data, data])
-        variant_labels.append(variant)
+        if variant not in variant_labels:
+            variant_labels.append(variant)
 
     # Group data to summarize flows
     sankey_data = all_data.groupby(['Facility', 'Source', 'Variant'])['Qty'].sum().reset_index()
@@ -35,7 +47,7 @@ for family, variants in mbom_pipelines.items():
         source=sankey_data['SourceID'],
         target=sankey_data['TargetID'],
         value=sankey_data['Qty'],
-        color=[variant_colors[variant_labels.index(var)] for var in sankey_data['Variant']]  # Color links by variant
+        color=[colors[variant_labels.index(var)] for var in sankey_data['Variant']]  # Color links by variant
     )
 
     # Sankey diagram
@@ -47,3 +59,44 @@ for family, variants in mbom_pipelines.items():
 
     fig.update_layout(title_text=f"Material Flow Sankey Diagram for {family}", font_size=10)
     fig.show()
+
+
+
+
+
+import pandas as pd
+
+def calculate_daily_headcount(dept_logger, num_months):
+    main_df = pd.DataFrame(dept_logger.log)
+    daily_heads = []
+    heads_list = {}
+    end = num_months * 160  # Calculate the end based on number of months and hours per month
+
+    for k in range(int(end // 8)):
+        heads_list[f'{k}'] = {}
+        period_df = main_df[(main_df['Timestamp'] < 8*(k+1)) & (main_df['Timestamp'] > 8*k)]
+
+        for _, row in period_df.iterrows():
+            department = row['Department']
+            interaction = row['Interaction']
+            if department not in heads_list[f'{k}']:
+                heads_list[f'{k}'][department] = [interaction]
+            else:
+                heads_list[f'{k}'][department].append(interaction)
+
+        daily_headcount = 0
+        for department in heads_list[f'{k}'].keys():
+            unique_heads = set(heads_list[f'{k}'][department])
+            headcount = 8 * len(unique_heads)  # Multiply by hours in a day to get man-hours
+            heads_list[f'{k}'][department] = headcount
+            daily_headcount += headcount
+        
+        daily_heads.append(daily_headcount)
+
+    return daily_heads
+
+# Example Usage
+dept_logger = pd.DataFrame()  # Replace with actual DataFrame loading
+num_months = 20
+daily_headcounts = calculate_daily_headcount(dept_logger, num_months)
+
