@@ -1,42 +1,49 @@
-# Create a Sankey diagram for each family and variant
+
+# Create a Sankey diagram for each family
 for family, variants in mbom_pipelines.items():
-    for variant, data in variants.items():
-        df = data
+    all_data = pd.DataFrame()
+    variant_labels = []
 
-        # Group data to summarize flows
-        sankey_data = df.groupby(['Facility', 'Source'])['Qty'].sum().reset_index()
+    # Combine data from all variants
+    for i, (variant, data) in enumerate(variants.items()):
+        data['Variant'] = variant  # Tag each row with its variant
+        all_data = pd.concat([all_data, data])
+        variant_labels.append(variant)
 
-        # Map labels to unique IDs
-        labels = pd.concat([sankey_data['Facility'], sankey_data['Source']]).unique()
-        label_dict = {label: i for i, label in enumerate(labels)}
+    # Group data to summarize flows
+    sankey_data = all_data.groupby(['Facility', 'Source', 'Variant'])['Qty'].sum().reset_index()
 
-        # Apply mappings to create source and target IDs
-        sankey_data['SourceID'] = sankey_data['Facility'].map(label_dict)
-        sankey_data['TargetID'] = sankey_data['Source'].map(label_dict)
+    # Map labels to unique IDs
+    labels = pd.concat([sankey_data['Facility'], sankey_data['Source']]).unique()
+    label_dict = {label: i for i, label in enumerate(labels)}
 
-        # Node data
-        node_trace = go.sankey.Node(
-            pad=15,
-            thickness=20,
-            line=dict(color="black", width=0.5),
-            label=labels,
-            color=[variant_colors[variant] if x % 2 == 0 else flow_direction_colors['incoming'] for x in range(len(labels))]
-        )
+    # Apply mappings to create source and target IDs
+    sankey_data['SourceID'] = sankey_data['Facility'].map(label_dict)
+    sankey_data['TargetID'] = sankey_data['Source'].map(label_dict)
 
-        # Link data (for flows between nodes)
-        link_trace = go.sankey.Link(
-            source=sankey_data['SourceID'],
-            target=sankey_data['TargetID'],
-            value=sankey_data['Qty'],
-            color=[flow_direction_colors['outgoing'] if i % 2 == 0 else variant_colors[variant] for i in range(len(sankey_data))]
-        )
+    # Node data
+    node_trace = go.sankey.Node(
+        pad=15,
+        thickness=20,
+        line=dict(color="black", width=0.5),
+        label=labels,
+        color=['rgba(211,211,211,0.5)' for _ in labels]  # Light gray color for nodes
+    )
 
-        # Sankey diagram
-        fig = go.Figure(data=[go.Sankey(
-            node=node_trace,
-            link=link_trace,
-            arrangement='snap'
-        )])
+    # Link data (for flows between nodes)
+    link_trace = go.sankey.Link(
+        source=sankey_data['SourceID'],
+        target=sankey_data['TargetID'],
+        value=sankey_data['Qty'],
+        color=[variant_colors[variant_labels.index(var)] for var in sankey_data['Variant']]  # Color links by variant
+    )
 
-        fig.update_layout(title_text=f"Material Flow Sankey Diagram for {family} - {variant}", font_size=10)
-        fig.show()
+    # Sankey diagram
+    fig = go.Figure(data=[go.Sankey(
+        node=node_trace,
+        link=link_trace,
+        arrangement='snap'
+    )])
+
+    fig.update_layout(title_text=f"Material Flow Sankey Diagram for {family}", font_size=10)
+    fig.show()
