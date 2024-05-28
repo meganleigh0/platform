@@ -1,52 +1,42 @@
 import pandas as pd
 
-# Initialize DataFrame and dictionary to store completed counts
-df = pd.DataFrame(assembly_logger.log)
-completed_count = {f'{month}': {} for month in range(20)}
+# Initialize DataFrame from log
+main_df = pd.DataFrame(dept_logger.log)
+main_df = main_df.sort_values(['Operation ID', 'Timestamp'])
 
-# Constants for easier configuration
-TIME_PERIOD = 160
-PROGRAMS = ['Taiwan', 'Australia', 'Sep 90a', 'Sep 90b', 'Poland']
-ASSEMBLY_STEPS = ['prep and ship', 'prep ship']
+# Constants
+TIME_SLOT = 8  # Each time slot duration
+total_periods = int(end // TIME_SLOT) + 1  # Total number of time periods
 
-# Processing the data
-for month in range(20):
-    # Filter DataFrame for the current time period
-    month_filter = (df['Timestamp'] < (month + 1) * TIME_PERIOD) & (df['Timestamp'] >= month * TIME_PERIOD)
-    month_df = df[month_filter]
+# Initialize list to store total man-hours for each period
+daily_hours = []
 
-    # Further filtering for relevant assembly steps and interaction
-    relevant_df = month_df[(month_df['Assembly'].isin(ASSEMBLY_STEPS)) & (month_df['Interaction'] == 'end')]
+# Loop through each period
+for k in range(total_periods):
+    # Filter DataFrame for current time slot
+    time_filter = (main_df['Timestamp'] >= k * TIME_SLOT) & (main_df['Timestamp'] < (k + 1) * TIME_SLOT)
+    period_df = main_df[time_filter]
 
-    # Count occurrences
-    for _, row in relevant_df.iterrows():
-        vehicle_type = row['Vehicle'].split(':')[0]
-        completed_count[f'{month}'].setdefault(vehicle_type, 0)
-        completed_count[f'{month}'][vehicle_type] += 1
+    # Calculate man-hours for each operation within the period
+    man_hours = 0
+    for op_id in period_df['Operation ID'].unique():
+        operation_df = period_df[period_df['Operation ID'] == op_id]
 
-    # Ensure all programs are represented in the dictionary, even if count is zero
-    for program in PROGRAMS:
-        completed_count[f'{month}'].setdefault(program, 0)
+        # Determine start time
+        start_time = operation_df[operation_df['Start/End'] == 'start']['Timestamp'].min()
+        if pd.isna(start_time):
+            start_time = k * TIME_SLOT
+        
+        # Determine end time
+        end_time = operation_df[operation_df['Start/End'] == 'end']['Timestamp'].max()
+        if pd.isna(end_time):
+            end_time = (k + 1) * TIME_SLOT
+        
+        # Count total interactions and calculate man-hours
+        heads = len(operation_df['Interaction'])
+        man_hours += heads * (end_time - start_time)
 
-    # Cumulate counts from previous months
-    if month != 0:
-        for program in completed_count[f'{month}']:
-            completed_count[f'{month}'][program] += completed_count[f'{month - 1}'].get(program, 0)
+    daily_hours.append(man_hours)
 
-    # Add the vehicles completed prior to May 2024 for each program
-    additions = {'Taiwan': 23, 'Sep 90a': 42, 'Australia': 21}
-    for program, additional_units in additions.items():
-        if program in completed_count[f'{month}']:
-            completed_count[f'{month}'][program] += additional_units
-
-# Convert to DataFrame and set columns
-complete = pd.DataFrame(completed_count).T
-production_months = [f'{m} 2024' for m in ["May", "June", "July", "August", "September", "October"]]
-complete.columns = production_months[:len(complete.columns)]
-
-# Formatting options
-pd.options.display.float_format = '{:,.0f}'.format
-pd.set_option('display.max_columns', None)
-
-# Display the DataFrame
-complete.fillna(0)
+# Results
+daily_hours
