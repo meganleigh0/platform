@@ -1,42 +1,42 @@
-import pandas as pd
+# Create a Sankey diagram for each family and variant
+for family, variants in mbom_pipelines.items():
+    for variant, data in variants.items():
+        df = data
 
-def calculate_daily_hours(main_df, end):
-    daily_hours = []
-    for k in range(int(end//8) + 1):
-        period_df = main_df[(main_df['Timestamp'] < 8*(k+1)) & (main_df['Timestamp'] > 8*k)]
-        period_df = period_df.sort_values(['Operation ID', 'Timestamp'])
+        # Group data to summarize flows
+        sankey_data = df.groupby(['Facility', 'Source'])['Qty'].sum().reset_index()
 
-        heads_list = []
-        for ops in period_df['Operation ID'].unique():
-            ops_df = period_df[period_df['Operation ID'] == ops]
-            start_time = ops_df[ops_df['Start/End'] == 'start']['Timestamp'].values[0] if not ops_df[ops_df['Start/End'] == 'start'].empty else 8*k
-            end_time = ops_df[ops_df['Start/End'] == 'end']['Timestamp'].values[0] if not ops_df[ops_df['Start/End'] == 'end'].empty else 8*(k+1)
-            heads = len(ops_df['Interaction'].values[0])
-            heads_list.append(heads * (end_time - start_time))
-        daily_hours.append(sum(heads_list))
-    return daily_hours
+        # Map labels to unique IDs
+        labels = pd.concat([sankey_data['Facility'], sankey_data['Source']]).unique()
+        label_dict = {label: i for i, label in enumerate(labels)}
 
-def track_vehicle_completions(log_df):
-    completed_count = {}
-    for month in range(20):
-        month_df = log_df[(log_df['Timestamp'] < (month+1) * 160) & (log_df['Timestamp'] > month * 160)]
-        month_df = month_df[month_df['Assembly'].isin(['prep and ship', 'prep ship']) & (month_df['Interaction'] == 'end')]
+        # Apply mappings to create source and target IDs
+        sankey_data['SourceID'] = sankey_data['Facility'].map(label_dict)
+        sankey_data['TargetID'] = sankey_data['Source'].map(label_dict)
 
-        for _, row in month_df.iterrows():
-            vehicle_type = row['Vehicle'].split(':')[0]
-            if vehicle_type not in completed_count:
-                completed_count[vehicle_type] = [0] * 20  # Initialize list for each vehicle type
-            completed_count[vehicle_type][month] += 1
+        # Node data
+        node_trace = go.sankey.Node(
+            pad=15,
+            thickness=20,
+            line=dict(color="black", width=0.5),
+            label=labels,
+            color=[variant_colors[variant] if x % 2 == 0 else flow_direction_colors['incoming'] for x in range(len(labels))]
+        )
 
-        # Accumulate the count from previous months
-        if month != 0:
-            for vehicle in completed_count:
-                completed_count[vehicle][month] += completed_count[vehicle][month - 1]
+        # Link data (for flows between nodes)
+        link_trace = go.sankey.Link(
+            source=sankey_data['SourceID'],
+            target=sankey_data['TargetID'],
+            value=sankey_data['Qty'],
+            color=[flow_direction_colors['outgoing'] if i % 2 == 0 else variant_colors[variant] for i in range(len(sankey_data))]
+        )
 
-    return pd.DataFrame(completed_count)
+        # Sankey diagram
+        fig = go.Figure(data=[go.Sankey(
+            node=node_trace,
+            link=link_trace,
+            arrangement='snap'
+        )])
 
-# Example Usage
-dept_logger = pd.DataFrame()  # Replace with actual DataFrame loading
-assembly_logger = pd.DataFrame()  # Replace with actual DataFrame loading
-daily_hours = calculate_daily_hours(dept_logger, 160)  # Assuming 'end' is 160
-completed_vehicles = track_vehicle_completions(assembly_logger)
+        fig.update_layout(title_text=f"Material Flow Sankey Diagram for {family} - {variant}", font_size=10)
+        fig.show()
