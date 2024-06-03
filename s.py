@@ -1,29 +1,44 @@
-import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
+import simpy
 
-# Sample DataFrame
-data = {'Name': ['Alice', 'Bob', 'Charlie', 'David'],
-        'Age': [25, 30, 35, 40],
-        'City': ['New York', 'Los Angeles', 'Chicago', 'Houston']}
-df = pd.DataFrame(data)
+# Define a function to simulate the operations at a station
+def operation(env, operation, station, part):
+    yield env.timeout(operation['Hours'])
+    print(f"Completed {operation['Description']} for {part['Description']} at {station['Description']} at time {env.now}")
 
-# Define the row to highlight
-highlight_row = 2
+# Initialize the simulation environment
+env = simpy.Environment()
 
-# Plotting
-plt.figure(figsize=(10, 4))
-ax = plt.subplot(111, frame_on=False)
-ax.xaxis.set_visible(False)
-ax.yaxis.set_visible(False)
-sns.set(font_scale=1.2)
-sns.heatmap(df.T, annot=True, cmap='Blues', cbar=False, linewidths=0.5)
+# Create resources for each station
+stations = {}
+for index, row in stations_df.iterrows():
+    parallel = row['ParallelProcessing']
+    capacity = float('inf') if parallel else 1
+    stations[row['StationID']] = simpy.Resource(env, capacity=capacity)
 
-# Highlight the specified row
-highlight_color = 'gold'
-highlight_indices = [df.columns.get_loc(df.index[highlight_row])]
-for idx in highlight_indices:
-    ax.add_patch(plt.Rectangle((idx + 0.1, -0.2), 1, 1, fill=True, edgecolor=highlight_color, facecolor=highlight_color))
+# Define a function to process a part and its children
+def process_part(env, part_number):
+    part = parts_df[parts_df['PartNumber'] == part_number].iloc[0]
+    child_parts = parts_df[parts_df['ParentPart'] == part_number]
+    
+    # Process child parts first
+    for index, child in child_parts.iterrows():
+        yield env.process(process_part(env, child['PartNumber']))
+    
+    # Process the part itself
+    part_operations = part_operations_df[part_operations_df['PartNumber'] == part_number]
+    for index, row in part_operations.iterrows():
+        operation = operations_df[operations_df['OperationID'] == row['OperationID']].iloc[0]
+        station = stations_df[stations_df['StationID'] == operation['StationID']].iloc[0]
+        station_resource = stations[operation['StationID']]
+        
+        with station_resource.request() as request:
+            yield request
+            yield env.process(operation(env, operation, station, part))
 
-plt.title('DataFrame with Highlighted Row')
-plt.show()
+# Schedule the initial parts
+initial_parts = parts_df[parts_df['ParentPart'].isna()]
+for index, part in initial_parts.iterrows():
+    env.process(process_part(env, part['PartNumber']))
+
+# Run the simulation
+env.run()
