@@ -1,73 +1,47 @@
 import pandas as pd
-import plotly.graph_objects as go
 
-# Example DataFrame
-data = {
-    'Program': ['Program1', 'Program1', 'Program2', 'Program2'],
-    'Family': ['Family1', 'Family1', 'Family2', 'Family2'],
-    'Status': ['Active', 'Inactive', 'Active', 'Inactive'],
-    'Month': [1, 1, 1, 1],
-    'Year': [2020, 2020, 2020, 2020],
-    'Vehicles': [100, 150, 200, 250]
-}
+# Assuming you have the following DataFrames and dictionary as described:
+# programs, dep, and mom_dep_regs
 
-df = pd.DataFrame(data)
+# Aggregate vehicle quantities by month, family, and mbom
+monthly_mbom_quantities = programs.groupby(['Month', 'Family', 'mbom']).agg({'Vehicles': 'sum'}).reset_index()
 
-# Aggregate data
-df_aggregated = df.groupby(['Family', 'Year', 'Month', 'Program']).agg({'Vehicles': 'sum'}).reset_index()
+# Initialize an empty DataFrame to hold the computed department hours for each month
+dept_monthly_hours = pd.DataFrame()
 
-# Initialize the figure
-fig = go.Figure()
+# Iterate over each month to calculate required department hours based on vehicle production
+for month in months:
+    this_month_req = monthly_mbom_quantities[monthly_mbom_quantities["Month"] == month]
+    
+    # Initialize an empty DataFrame to collect this month's departmental hours requirements
+    this_month_labor = pd.DataFrame()
 
-# Get unique families
-families = df_aggregated['Family'].unique()
+    # Iterate over each row in the monthly requirements DataFrame
+    for index, row in this_month_req.iterrows():
+        mbom = row['mbom']
+        vehicles = row['Vehicles']
+        
+        # Retrieve the department hour requirements for this mbom from the dictionary
+        if mbom in mom_dep_regs:
+            mbom_dep_reqs = mom_dep_regs[mbom]
+            
+            # Calculate the total hours for each department based on the number of vehicles
+            vehicles_mbom_dep_reqs = mbom_dep_reqs * vehicles
+            vehicles_mbom_dep_reqs = vehicles_mbom_dep_reqs.reset_index()
+            vehicles_mbom_dep_reqs.rename(columns={mbom_dep_reqs.name: 'RequiredHours'}, inplace=True)
+            vehicles_mbom_dep_reqs['Month'] = month
+            
+            # Append the results to the month's DataFrame
+            this_month_labor = pd.concat([this_month_labor, vehicles_mbom_dep_reqs], ignore_index=True)
 
-# Add traces for each program within each family
-for family in families:
-    filtered_df = df_aggregated[df_aggregated['Family'] == family]
-    for program in filtered_df['Program'].unique():
-        fig.add_trace(
-            go.Bar(
-                x=filtered_df['Month'],
-                y=filtered_df[filtered_df['Program'] == program]['Vehicles'],
-                name=f'{program} - {family}',
-                visible=(family == families[0])  # Only the first family is visible initially
-            )
-        )
+    # Aggregate hours by DEPT and Month if there is any data
+    if not this_month_labor.empty:
+        this_month_labor = this_month_labor.groupby(['DEPT', 'Month']).agg({'RequiredHours': 'sum'}).reset_index()
+        dept_monthly_hours = pd.concat([dept_monthly_hours, this_month_labor], ignore_index=True)
 
-# Create a dropdown menu to select the family
-buttons = []
+# Now dept_monthly_hours contains the aggregated required hours by department and month
+# Compare it with actual department hours from 'dep' DataFrame
+comparison = dept_monthly_hours.merge(dep, on=['DEPT', 'Month'], how='left')
+comparison['HoursVariance'] = comparison['RequiredHours'] - comparison['EstimatedHours']
 
-for family in families:
-    buttons.append(
-        dict(
-            label=family,
-            method="update",
-            args=[{"visible": [family == val.split(' - ')[1] for val in fig.data]},
-                  {"title": f"Total Vehicles by Program: {family}"}]
-        )
-    )
-
-# Add dropdown to the layout
-fig.update_layout(
-    updatemenus=[
-        dict(
-            active=0,
-            buttons=buttons,
-            direction="down",
-            pad={"r": 10, "t": 10},
-            showactive=True,
-            x=0.1,
-            xanchor="left",
-            y=1.15,
-            yanchor="top"
-        ),
-    ],
-    title="Total Vehicles by Family and Program",
-    xaxis_title="Month",
-    yaxis_title="Total Vehicles",
-    barmode='group'
-)
-
-# Show the figure
-fig.show()
+print(comparison)
