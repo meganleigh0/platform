@@ -1,44 +1,32 @@
-import simpy
+import plotly.express as px
+import pandas as pd
 
-# Define a function to simulate the operations at a station
-def operation(env, operation, station, part):
-    yield env.timeout(operation['Hours'])
-    print(f"Completed {operation['Description']} for {part['Description']} at {station['Description']} at time {env.now}")
+# Assuming df is your DataFrame
 
-# Initialize the simulation environment
-env = simpy.Environment()
+# Convert 'Source' to datetime to sort it correctly in the plot
+df['Source'] = pd.to_datetime(df['Source'], format='%B_%Y')
 
-# Create resources for each station
-stations = {}
-for index, row in stations_df.iterrows():
-    parallel = row['ParallelProcessing']
-    capacity = float('inf') if parallel else 1
-    stations[row['StationID']] = simpy.Resource(env, capacity=capacity)
+# Sort the DataFrame by Source to ensure chronological plotting
+df.sort_values('Source', inplace=True)
 
-# Define a function to process a part and its children
-def process_part(env, part_number):
-    part = parts_df[parts_df['PartNumber'] == part_number].iloc[0]
-    child_parts = parts_df[parts_df['ParentPart'] == part_number]
-    
-    # Process child parts first
-    for index, child in child_parts.iterrows():
-        yield env.process(process_part(env, child['PartNumber']))
-    
-    # Process the part itself
-    part_operations = part_operations_df[part_operations_df['PartNumber'] == part_number]
-    for index, row in part_operations.iterrows():
-        operation = operations_df[operations_df['OperationID'] == row['OperationID']].iloc[0]
-        station = stations_df[stations_df['StationID'] == operation['StationID']].iloc[0]
-        station_resource = stations[operation['StationID']]
-        
-        with station_resource.request() as request:
-            yield request
-            yield env.process(operation(env, operation, station, part))
+# Create a stacked bar chart
+fig = px.bar(df, 
+             x='Source', 
+             y='EstimatedHours', 
+             color='DEPT', 
+             title='Estimated Hours by Department across Sources',
+             labels={'Source': 'Report Month', 'EstimatedHours': 'Hours'},
+             facet_col='Plant', 
+             facet_col_wrap=3, # Adjust based on how many plants there are
+             category_orders={"Source": sorted(df['Source'].unique())}) # Ensure chronological order
 
-# Schedule the initial parts
-initial_parts = parts_df[parts_df['ParentPart'].isna()]
-for index, part in initial_parts.iterrows():
-    env.process(process_part(env, part['PartNumber']))
+# Improve layout
+fig.update_layout(
+    xaxis_title='Report Month',
+    yaxis_title='Estimated Hours',
+    xaxis_tickformat='%b %Y',  # Format the ticks to show abbreviated month and year
+    xaxis_tickangle=-45,
+    barmode='stack'
+)
 
-# Run the simulation
-env.run()
+fig.show()
