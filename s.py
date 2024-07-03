@@ -32,29 +32,26 @@ def main():
     # Filter data based on selections
     filtered_data = df[(df['Variant'] == variant) & (df['Station'] == station)]
 
-    # Operations, Parts, and Assemblies tabs
-    tab1, tab2, tab3 = st.tabs(["Operations", "Parts", "Assemblies"])
+    st.markdown("### Operations at Station " + station)
+    operations = filtered_data[filtered_data['Hours'] > 0]
+    if not operations.empty:
+        st.write(operations[['Operation Description', 'Department', 'mbomID', 'Assembly']])
+    else:
+        st.write("No operations found for this selection.")
 
-    with tab1:
-        operations = filtered_data[filtered_data['Hours'] > 0]
-        if not operations.empty:
-            st.write(operations[['Operation Description', 'Department', 'mbomID', 'Assembly']])
-        else:
-            st.write("No operations found for this selection.")
+    st.markdown("### Parts at Station " + station)
+    parts = filtered_data[filtered_data['Hours'] == 0]
+    if not parts.empty:
+        st.write(parts[['mbomID', 'Assembly']])
+    else:
+        st.write("No parts found for this selection.")
 
-    with tab2:
-        parts = filtered_data[filtered_data['Hours'] == 0]
-        if not parts.empty:
-            st.write(parts[['mbomID', 'Assembly']])
-        else:
-            st.write("No parts found for this selection.")
-
-    with tab3:
-        assemblies = filtered_data['Assembly'].unique()
-        if assemblies.size > 0:
-            st.write(assemblies)
-        else:
-            st.write("No assemblies found for this selection.")
+    st.markdown("### Assemblies at Station " + station)
+    assemblies = filtered_data['Assembly'].unique()
+    if assemblies.size > 0:
+        st.write(assemblies)
+    else:
+        st.write("No assemblies found for this selection.")
 
 if __name__ == "__main__":
     main()
