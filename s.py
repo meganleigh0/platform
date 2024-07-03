@@ -1,46 +1,46 @@
-limport streamlit as st
-import pandas as pd
-import plotly.express as px
-
-# Sample DataFrame
-data = {
-    "Hours": [1, 2, 0, 1.5, 0, 3],
-    "Operation Description": ["Op1", "Op2", "", "Op3", "", "Op4"],
-    "Department": ["Dept1", "Dept2", "", "Dept1", "", "Dept3"],
-    "mbomID": [101, 102, 103, 101, 104, 105],
-    "Assembly": ["Asm1", "Asm2", "Asm3", "Asm1", "Asm4", "Asm5"],
-    "Variant": ["Var1", "Var2", "Var1", "Var2", "Var1", "Var3"],
-    "Station": ["S1", "S2", "S1", "S2", "S3", "S1"]
-}
-
+# Load the data into a DataFrame
 df = pd.DataFrame(data)
 
-# Streamlit App
-st.title("Manufacturing Operations Dashboard")
+# Streamlit application
+def main():
+    st.title('Manufacturing Operations Dashboard')
+    
+    # Sidebar selections
+    variant = st.sidebar.selectbox('Select Variant', options=df['Variant'].unique())
+    station = st.sidebar.selectbox('Select Station', options=df['Station'].unique())
 
-variant = st.selectbox("Select Variant", df["Variant"].unique())
-station = st.selectbox("Select Station", df["Station"].unique())
+    # Filter data based on selections
+    filtered_data = df[(df['Variant'] == variant) & (df['Station'] == station)]
+    
+    # Separate operations and parts
+    operations = filtered_data[filtered_data['Hours'] > 0]
+    parts = filtered_data[filtered_data['Hours'] == 0]
 
-filtered_df = df[(df["Variant"] == variant) & (df["Station"] == station)]
+    # Display Operations
+    if not operations.empty:
+        st.subheader('Operations at Station ' + station)
+        st.write(operations[['Operation Description', 'Department', 'mbomID', 'Assembly']])
+        # Plotting with Plotly for visual insight
+        fig = px.bar(operations, x='Operation Description', y='Hours', color='Department', title='Operation Hours by Department')
+        st.plotly_chart(fig)
+    else:
+        st.subheader('No operations found for this selection.')
 
-st.subheader(f"Details for Variant: {variant} at Station: {station}")
+    # Display Parts
+    if not parts.empty:
+        st.subheader('Parts at Station ' + station)
+        st.write(parts[['mbomID', 'Assembly']])
+    else:
+        st.subheader('No parts found for this selection.')
 
-operations_df = filtered_df[filtered_df["Operation Description"] != ""]
-parts_df = filtered_df[filtered_df["Operation Description"] == ""]
+    # Display Assemblies involved in selected Station
+    assemblies = filtered_data['Assembly'].unique()
+    if assemblies.size > 0:
+        st.subheader('Assemblies at Station ' + station)
+        st.write(assemblies)
+    else:
+        st.subheader('No assemblies found for this selection.')
 
-st.write("### Operations")
-st.write(operations_df[["Operation Description", "Hours", "Department", "Assembly"]])
-
-st.write("### Parts")
-st.write(parts_df[["mbomID", "Assembly"]])
-
-st.write("### Assemblies")
-assemblies_df = filtered_df[["Assembly", "mbomID"]].drop_duplicates()
-st.write(assemblies_df)
-
-# Visualizations
-fig = px.bar(operations_df, x="Operation Description", y="Hours", color="Assembly", title="Operation Hours by Assembly")
-st.plotly_chart(fig)
-
-fig = px.pie(assemblies_df, names="Assembly", values="mbomID", title="Assemblies Distribution")
-st.plotly_chart(fig)
+# Run the Streamlit application
+if __name__ == "__main__":
+    main()
