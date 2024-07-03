@@ -19,10 +19,10 @@ def main():
     st.set_page_config(layout="wide")
     st.title('Manufacturing Operations Dashboard')
 
-    # Landing page showing total labor by variant
-    st.markdown("## Total Labor by Variant")
-    labor_by_variant = df.groupby('Variant')['Hours'].sum().reset_index()
-    fig_total_labor = px.bar(labor_by_variant, x='Variant', y='Hours', title='Total Labor Hours by Variant')
+    # Landing page showing total labor by variant, color-coded by department
+    st.markdown("## Total Labor by Variant, Color-Coded by Department")
+    labor_by_variant_dept = df[df['Hours'] > 0].groupby(['Variant', 'Department'])['Hours'].sum().reset_index()
+    fig_total_labor = px.bar(labor_by_variant_dept, x='Variant', y='Hours', color='Department', title='Total Labor Hours by Variant and Department')
     st.plotly_chart(fig_total_labor, use_container_width=True)
 
     # Sidebar selections
@@ -32,26 +32,30 @@ def main():
     # Filter data based on selections
     filtered_data = df[(df['Variant'] == variant) & (df['Station'] == station)]
 
-    st.markdown("### Operations at Station " + station)
-    operations = filtered_data[filtered_data['Hours'] > 0]
-    if not operations.empty:
-        st.write(operations[['Operation Description', 'Department', 'mbomID', 'Assembly']])
-    else:
-        st.write("No operations found for this selection.")
+    # Display sections with formatted tables
+    if not filtered_data.empty:
+        st.markdown("### Operations at Station " + station)
+        operations = filtered_data[filtered_data['Hours'] > 0]
+        if not operations.empty:
+            st.dataframe(operations[['Operation Description', 'Department', 'mbomID', 'Assembly']].style.set_table_styles([{'selector': '', 'props': [('font-size', '16px')]}]))
+        else:
+            st.write("No operations found for this selection.")
 
-    st.markdown("### Parts at Station " + station)
-    parts = filtered_data[filtered_data['Hours'] == 0]
-    if not parts.empty:
-        st.write(parts[['mbomID', 'Assembly']])
-    else:
-        st.write("No parts found for this selection.")
+        st.markdown("### Parts at Station " + station)
+        parts = filtered_data[filtered_data['Hours'] == 0]
+        if not parts.empty:
+            st.dataframe(parts[['mbomID', 'Assembly']].style.set_table_styles([{'selector': '', 'props': [('font-size', '16px')]}]))
+        else:
+            st.write("No parts found for this selection.")
 
-    st.markdown("### Assemblies at Station " + station)
-    assemblies = filtered_data['Assembly'].unique()
-    if assemblies.size > 0:
-        st.write(assemblies)
+        st.markdown("### Assemblies at Station " + station)
+        assemblies = filtered_data['Assembly'].unique()
+        if assemblies.size > 0:
+            st.write(", ".join(assemblies))
+        else:
+            st.write("No assemblies found for this selection.")
     else:
-        st.write("No assemblies found for this selection.")
+        st.write("No data found for the selected variant and station.")
 
 if __name__ == "__main__":
     main()
