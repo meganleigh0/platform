@@ -1,46 +1,60 @@
-# Load the data into a DataFrame
+import streamlit as st
+import pandas as pd
+import plotly.express as px
+
+# Sample DataFrame
+data = {
+    "Hours": [1, 2, 0, 1.5, 0, 3, 0.5, 2, 0, 3, 1, 0],
+    "Operation Description": ["Op1", "Op2", "", "Op3", "", "Op4", "Op5", "Op6", "", "Op7", "Op1", ""],
+    "Department": ["Dept1", "Dept2", "", "Dept1", "", "Dept3", "Dept1", "Dept2", "", "Dept3", "Dept1", ""],
+    "mbomID": [101, 102, 103, 101, 104, 105, 106, 107, 108, 109, 110, 111],
+    "Assembly": ["Asm1", "Asm2", "Asm3", "Asm1", "Asm4", "Asm5", "Asm1", "Asm2", "Asm3", "Asm5", "Asm1", "Asm4"],
+    "Variant": ["Var1", "Var2", "Var1", "Var2", "Var1", "Var3", "Var1", "Var2", "Var3", "Var2", "Var1", "Var2"],
+    "Station": ["S1", "S2", "S1", "S2", "S3", "S1", "S1", "S2", "S1", "S2", "S3", "S1"]
+}
+
 df = pd.DataFrame(data)
 
-# Streamlit application
 def main():
+    st.set_page_config(layout="wide")
     st.title('Manufacturing Operations Dashboard')
-    
+
+    # Landing page showing total labor by variant
+    st.markdown("## Total Labor by Variant")
+    labor_by_variant = df.groupby('Variant')['Hours'].sum().reset_index()
+    fig_total_labor = px.bar(labor_by_variant, x='Variant', y='Hours', title='Total Labor Hours by Variant')
+    st.plotly_chart(fig_total_labor, use_container_width=True)
+
     # Sidebar selections
     variant = st.sidebar.selectbox('Select Variant', options=df['Variant'].unique())
     station = st.sidebar.selectbox('Select Station', options=df['Station'].unique())
 
     # Filter data based on selections
     filtered_data = df[(df['Variant'] == variant) & (df['Station'] == station)]
-    
-    # Separate operations and parts
-    operations = filtered_data[filtered_data['Hours'] > 0]
-    parts = filtered_data[filtered_data['Hours'] == 0]
 
-    # Display Operations
-    if not operations.empty:
-        st.subheader('Operations at Station ' + station)
-        st.write(operations[['Operation Description', 'Department', 'mbomID', 'Assembly']])
-        # Plotting with Plotly for visual insight
-        fig = px.bar(operations, x='Operation Description', y='Hours', color='Department', title='Operation Hours by Department')
-        st.plotly_chart(fig)
-    else:
-        st.subheader('No operations found for this selection.')
+    # Operations, Parts, and Assemblies tabs
+    tab1, tab2, tab3 = st.tabs(["Operations", "Parts", "Assemblies"])
 
-    # Display Parts
-    if not parts.empty:
-        st.subheader('Parts at Station ' + station)
-        st.write(parts[['mbomID', 'Assembly']])
-    else:
-        st.subheader('No parts found for this selection.')
+    with tab1:
+        operations = filtered_data[filtered_data['Hours'] > 0]
+        if not operations.empty:
+            st.write(operations[['Operation Description', 'Department', 'mbomID', 'Assembly']])
+        else:
+            st.write("No operations found for this selection.")
 
-    # Display Assemblies involved in selected Station
-    assemblies = filtered_data['Assembly'].unique()
-    if assemblies.size > 0:
-        st.subheader('Assemblies at Station ' + station)
-        st.write(assemblies)
-    else:
-        st.subheader('No assemblies found for this selection.')
+    with tab2:
+        parts = filtered_data[filtered_data['Hours'] == 0]
+        if not parts.empty:
+            st.write(parts[['mbomID', 'Assembly']])
+        else:
+            st.write("No parts found for this selection.")
 
-# Run the Streamlit application
+    with tab3:
+        assemblies = filtered_data['Assembly'].unique()
+        if assemblies.size > 0:
+            st.write(assemblies)
+        else:
+            st.write("No assemblies found for this selection.")
+
 if __name__ == "__main__":
     main()
