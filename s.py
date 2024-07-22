@@ -1,48 +1,43 @@
 import pandas as pd
 
-def process_station_data(df):
+def extract_summary_and_vehicle_data(df):
     """
-    Process station data to extract and organize vehicle and program details.
+    Extract summary and vehicle data for each program from a given section DataFrame.
     
     Args:
     df (pd.DataFrame): DataFrame containing data for a specific section.
     
     Returns:
-    pd.DataFrame: Processed DataFrame with structured vehicle and program data.
+    tuple: (summary DataFrame, detailed vehicle DataFrame)
     """
-    # Drop any completely empty rows and columns
-    df = df.dropna(how='all').dropna(how='all', axis=1)
+    # Drop completely empty columns to clean up the DataFrame
+    df = df.dropna(how='all', axis=1).reset_index(drop=True)
 
-    # Define a new DataFrame to hold the structured data
-    structured_data = pd.DataFrame()
+    # Extracting summary table
+    # Assuming summary ends at 'Total' which is unique in its column
+    total_row = df[df.apply(lambda x: x.str.contains('Total', na=False, case=False)).any(axis=1)].index[0]
+    summary_df = df.iloc[:total_row + 1]  # +1 to include the row with 'Total'
+    summary_df.columns = df.iloc[0]  # Assuming first row is the header
+    summary_df = summary_df[1:]  # Remove the header row from data
 
-    # Iterate over the DataFrame rows
-    for idx, row in df.iterrows():
-        # Check if row contains vehicle and program data based on expected format (e.g., contains VIN or identifier like 'A90')
-        if any(row.str.contains('A90|P20|S40|Y30', regex=True, na=False)):
-            # Extract and process the data
-            for item in row.dropna():
-                # Split the item into its components based on spaces (assuming format like '1234 P20 36')
-                parts = item.split()
-                if len(parts) >= 2:
-                    vin = parts[0]
-                    program = parts[1]
-                    qty = int(parts[2]) if len(parts) == 3 else None  # Include quantity if present
-                    # Append to the DataFrame
-                    structured_data = structured_data.append({
-                        'VIN': vin,
-                        'Program': program,
-                        'Quantity': qty
-                    }, ignore_index=True)
+    # Extracting vehicle data
+    vehicle_df = df.iloc[total_row + 2:]  # Assuming vehicle data starts two rows after 'Total'
+    # Reset index for easier handling
+    vehicle_df.reset_index(drop=True, inplace=True)
 
-    # If there are named columns for contract, MRP, etc., extract this information too
-    if 'Contract' in df.columns:
-        contract_data = df.loc[df['Contract'].notna(), ['Contract', 'MRP', 'Actual', 'Delta', 'Flow']]
-        structured_data = pd.concat([structured_data, contract_data], axis=1)
+    # Vehicle data restructuring
+    # Transpose the DataFrame to make each program's data a separate column
+    vehicle_df = vehicle_df.transpose()
+    # Assuming first row now has program identifiers after transposing
+    vehicle_df.columns = vehicle_df.iloc[0]
+    vehicle_df = vehicle_df[1:]  # Remove the program identifier row
 
-    return structured_data
+    return summary_df, vehicle_df
 
 # Example usage:
-# Assuming you have a DataFrame 'teardown_data' from the 'Teardown' section
-# processed_data = process_station_data(teardown_data)
-# print(processed_data)
+# Assuming you have a DataFrame 'section_df' from any section
+# summary_data, vehicle_data = extract_summary_and_vehicle_data(section_df)
+# print("Summary Data:")
+# print(summary_data)
+# print("\nVehicle Data:")
+# print(vehicle_data)
