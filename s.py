@@ -1,14 +1,22 @@
-# Locate the starting point of "Tops" and "Bottoms" for Plant 1
-tops_index = data[data.iloc[:, 0] == 'Tops'].index[0]
-bottoms_index = data[data.iloc[:, 0] == 'Bottoms'].index[0]
+# Assuming 'Teardown' starts right after the 'Tops' marker, and ends before a blank row or next section marker
+# Find the start index for 'Teardown'
+teardown_start_index = tops_index + 1  # The row after 'Tops' is the header for 'Teardown'
 
-# Assuming the data structure repeats, find the end of the Tops section for Plant 1
-end_tops_index = bottoms_index - 1  # The row before Bottoms starts
+# Find the end index for 'Teardown' by locating the first blank row or the start of the next section
+teardown_end_index = tops_data[tops_data.isnull().all(axis=1)].index[0] if not tops_data[tops_data.isnull().all(axis=1)].empty else tops_data.index[-1]
 
-# Extract the "Tops" section for Plant 1
-tops_data = data.iloc[tops_index+1:end_tops_index]
+# Extract 'Teardown' data
+teardown_data = tops_data.loc[teardown_start_index:teardown_end_index]
 
-# Clean and structure the data
-# We need to determine how many rows belong to the header to parse the station tables correctly
-# Let's first display the extracted "Tops" section to adjust the header parsing if necessary
-tops_data.head(20)
+# Assuming the row right after 'Teardown' header row is the header for the table
+teardown_header = teardown_data.iloc[0]
+teardown_table = teardown_data.iloc[1:]
+
+# Set the correct header
+teardown_table.columns = teardown_header.values
+
+# Clean up the data table by dropping NaN columns and rows that are entirely NaN
+teardown_table_cleaned = teardown_table.dropna(axis=1, how='all').dropna(axis=0, how='all')
+
+# Show the cleaned table for 'Teardown'
+teardown_table_cleaned
