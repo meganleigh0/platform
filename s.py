@@ -1,43 +1,64 @@
 import pandas as pd
 
-def extract_summary_and_vehicle_data(df):
+def find_station_indices(df, station_names):
     """
-    Extract summary and vehicle data for each program from a given section DataFrame.
+    Find the start and end indices for given station names within a DataFrame.
     
     Args:
-    df (pd.DataFrame): DataFrame containing data for a specific section.
+    df (pd.DataFrame): DataFrame to search within.
+    station_names (list): List of station names to find indices for.
     
     Returns:
-    tuple: (summary DataFrame, detailed vehicle DataFrame)
+    dict: Dictionary mapping each station name to a tuple (start_index, end_index).
     """
-    # Drop completely empty columns to clean up the DataFrame
-    df = df.dropna(how='all', axis=1).reset_index(drop=True)
+    indices = {}
+    for station in station_names:
+        try:
+            start_index = df[df.apply(lambda x: x.str.contains(station, na=False, case=False)).any(axis=1)].index[0]
+            # Look for the next station or end of DataFrame
+            end_index = df[start_index+1:].apply(lambda x: x.isna().all(), axis=1).idxmax() + start_index
+            indices[station] = (start_index, end_index)
+        except:
+            indices[station] = (None, None)  # If station not found
+    return indices
 
-    # Extracting summary table
-    # Assuming summary ends at 'Total' which is unique in its column
-    total_row = df[df.apply(lambda x: x.str.contains('Total', na=False, case=False)).any(axis=1)].index[0]
-    summary_df = df.iloc[:total_row + 1]  # +1 to include the row with 'Total'
-    summary_df.columns = df.iloc[0]  # Assuming first row is the header
-    summary_df = summary_df[1:]  # Remove the header row from data
+def extract_data_by_station(df, station_indices):
+    """
+    Extracts summary and vehicle data based on the indices of each station.
+    
+    Args:
+    df (pd.DataFrame): DataFrame containing the data.
+    station_indices (dict): Dictionary of indices for each station.
+    
+    Returns:
+    dict: Dictionary containing summary and vehicle data for each station.
+    """
+    station_data = {}
+    for station, (start_idx, end_idx) in station_indices.items():
+        if start_idx is not None and end_idx is not None:
+            # Extracting the section for this station
+            station_df = df.iloc[start_idx:end_idx]
 
-    # Extracting vehicle data
-    vehicle_df = df.iloc[total_row + 2:]  # Assuming vehicle data starts two rows after 'Total'
-    # Reset index for easier handling
-    vehicle_df.reset_index(drop=True, inplace=True)
+            # Assuming summary ends at 'Total'
+            total_row = station_df[station_df.apply(lambda x: x.str.contains('Total', na=False, case=False)).any(axis=1)].index[0]
+            summary_df = station_df.iloc[:total_row + 1]
+            summary_df.columns = station_df.iloc[0]
+            summary_df = summary_df[1:]
 
-    # Vehicle data restructuring
-    # Transpose the DataFrame to make each program's data a separate column
-    vehicle_df = vehicle_df.transpose()
-    # Assuming first row now has program identifiers after transposing
-    vehicle_df.columns = vehicle_df.iloc[0]
-    vehicle_df = vehicle_df[1:]  # Remove the program identifier row
+            # Assuming vehicle data starts two rows after 'Total'
+            vehicle_df = station_df.iloc[total_row + 2:]
+            vehicle_df.reset_index(drop=True, inplace=True)
+            vehicle_df = vehicle_df.transpose()
+            vehicle_df.columns = vehicle_df.iloc[0]
+            vehicle_df = vehicle_df[1:]
 
-    return summary_df, vehicle_df
+            station_data[station] = {'Summary': summary_df, 'Vehicles': vehicle_df}
+        else:
+            station_data[station] = {'Summary': pd.DataFrame(), 'Vehicles': pd.DataFrame()}
+    
+    return station_data
 
 # Example usage:
-# Assuming you have a DataFrame 'section_df' from any section
-# summary_data, vehicle_data = extract_summary_and_vehicle_data(section_df)
-# print("Summary Data:")
-# print(summary_data)
-# print("\nVehicle Data:")
-# print(vehicle_data)
+df = pd.read_excel('path_to_your_excel_file.xlsx', header=None)  # Load your data
+station_names = ['Turrets', 'Hulls', 'Armor']  # Example station names
+indices = find_station
