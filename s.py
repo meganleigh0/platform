@@ -3,6 +3,7 @@ import pandas as pd
 def extract_summary_and_vehicle_data(df, station_name):
     """
     Extract summary and vehicle data for each program from a given section DataFrame.
+    
     Args:
     df (pd.DataFrame): DataFrame containing data for a specific section.
     station_name (str): Name of the station to which the data belongs.
@@ -10,41 +11,38 @@ def extract_summary_and_vehicle_data(df, station_name):
     Returns:
     tuple: (summary DataFrame, detailed vehicle DataFrame)
     """
-    # Reset index for easier slicing
-    df.reset_index(drop=True, inplace=True)
+    # Ensure the DataFrame is cleaned of all-NaN columns for accurate processing
+    df = df.dropna(how='all', axis=1).reset_index(drop=True)
 
-    # Drop completely empty columns to clean up the DataFrame
-    df = df.dropna(how='all', axis=1)
-
-    # Finding the row index for 'Total' which marks the end of the summary data
-    total_index = df.index[df.apply(lambda x: 'Total' in x.values, axis=1)].tolist()[0]
+    # Find the 'Total' row to distinguish summary from vehicle data
+    total_index = df.index[df.apply(lambda x: 'Total' in x.values, axis=1)][0]
 
     # Extract summary data
     summary_df = df.iloc[:total_index + 1]
-    summary_df.columns = summary_df.iloc[0]  # Set the first row as column header
-    summary_df = summary_df[1:]  # Drop the first row since it's now the header
+    summary_df.columns = summary_df.iloc[0]  # Set the first row as header
+    summary_df = summary_df[1:].reset_index(drop=True)  # Reset index after dropping header row
 
-    # Extract vehicle data
-    vehicle_data_start_index = total_index + 1
-    vehicle_df = df.iloc[vehicle_data_start_index:]
-
-    # Assume that the first non-empty row contains program names as headers
+    # Extract vehicle data starting after 'Total'
+    vehicle_df = df.iloc[total_index + 1:].reset_index(drop=True)
     vehicle_df = vehicle_df.transpose()
-    vehicle_df.columns = vehicle_df.iloc[0]
-    vehicle_df = vehicle_df[1:]  # Remove the header row
+    headers = vehicle_df.iloc[0]  # The first row of transposed data as headers
+    vehicle_df = vehicle_df[1:].reset_index(drop=True)
+    vehicle_df.columns = headers  # Set proper headers
 
-    # Create a structured vehicle DataFrame
-    vehicles_structured = pd.DataFrame()
+    # Create structured DataFrame for vehicles
+    structured_vehicles = pd.DataFrame()
 
-    # Iterate through each column (program), extract and add the station name
-    for column in vehicle_df.columns:
-        temp_df = vehicle_df[[column]].dropna().reset_index()
-        temp_df['Station'] = station_name  # Add station name to each entry
-        temp_df['Program'] = column  # Add program name to each entry
-        temp_df.columns = ['Vehicle', 'Quantity', 'Station', 'Program']
-        vehicles_structured = pd.concat([vehicles_structured, temp_df], ignore_index=True)
+    # Process each column (program)
+    for program in vehicle_df.columns:
+        # Create a temporary DataFrame for each program
+        temp_df = vehicle_df[[program]].dropna()
+        temp_df = temp_df.reset_index()
+        temp_df.rename(columns={'index': 'Vehicle', program: 'Quantity'}, inplace=True)
+        temp_df['Station'] = station_name
+        temp_df['Program'] = program
+        structured_vehicles = pd.concat([structured_vehicles, temp_df], ignore_index=True)
 
-    return summary_df, vehicles_structured
+    return summary_df, structured_vehicles
 
 # Example usage:
 # Assuming 'p1_turret' is your DataFrame loaded with the appropriate data and 'Turrets' is the station name
