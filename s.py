@@ -1,51 +1,41 @@
 import pandas as pd
 
-def extract_summary_and_vehicle_data(df, station_name):
-    """
-    Extract summary and vehicle data for each program from a given section DataFrame.
+def extract_vehicles_and_summary(df):
+    # Reset index for easier slicing and to ensure columns are properly aligned
+    df.reset_index(drop=True, inplace=True)
     
-    Args:
-    df (pd.DataFrame): DataFrame containing data for a specific section.
-    station_name (str): Name of the station to which the data belongs.
+    # Locate the index for the row that contains 'Total' which separates summary from vehicle data
+    total_index = df[df.apply(lambda x: 'Total' in x.values, axis=1)].index[0]
+    
+    # Extract summary data, assuming 'Total' row is included in summary
+    summary_df = df.iloc[:total_index+1]
+    
+    # Assuming the station name is in a column that sometimes has empty cells, fill forward
+    if 'Unnamed: 0' in df.columns:
+        df['Unnamed: 0'].ffill(inplace=True)
+    
+    # Extract vehicle data
+    vehicle_df = df.iloc[total_index+1:]
+    
+    # Clean up the DataFrame by dropping empty rows and columns if they are all NaN
+    vehicle_df.dropna(how='all', inplace=True)
+    vehicle_df.dropna(axis=1, how='all', inplace=True)
+    
+    # Add station information from 'Unnamed: 0' which we assume holds the station names
+    if 'Unnamed: 0' in df.columns:
+        vehicle_df['Station'] = df['Unnamed: 0'].iloc[total_index+1:].ffill()
+    
+    # Ensure the summary table also includes the station name added as a new column
+    summary_df['Station'] = df['Unnamed: 0'].ffill()
 
-    Returns:
-    tuple: (summary DataFrame, detailed vehicle DataFrame)
-    """
-    # Clean DataFrame by dropping all-NaN columns
-    df = df.dropna(how='all', axis=1).reset_index(drop=True)
+    # Optionally, clean and rename columns in both DataFrames here as needed
+    
+    return summary_df, vehicle_df
 
-    # Find 'Total' to split summary and vehicle data
-    total_index = df.index[df.apply(lambda x: 'Total' in x.values, axis=1)][0]
+# Assuming 'data' is your DataFrame loaded from the Excel or other data source
+summary_data, vehicle_data = extract_vehicles_and_summary(data)
 
-    # Extract summary data
-    summary_df = df.iloc[:total_index + 1]
-    summary_df.columns = summary_df.iloc[0]  # Setting the first row as header
-    summary_df = summary_df[1:].reset_index(drop=True)
-
-    # Extract vehicle data starting after 'Total'
-    vehicle_df = df.iloc[total_index + 1:].reset_index(drop=True)
-    vehicle_df = vehicle_df.transpose()
-    headers = vehicle_df.iloc[0]  # Grabbing the first row as headers after transpose
-    vehicle_df = vehicle_df[1:].reset_index(drop=True)
-    vehicle_df.columns = headers  # Setting proper headers
-
-    # Structured DataFrame for vehicle data
-    structured_vehicles = pd.DataFrame()
-
-    for program in vehicle_df.columns:
-        # Constructing a DataFrame for each program's vehicles
-        program_df = vehicle_df[[program]].dropna().reset_index()
-        program_df.rename(columns={'index': 'Vehicle', program: 'Quantity'}, inplace=True)
-        program_df['Station'] = station_name
-        program_df['Program'] = program
-        # Concatenate using 'ignore_index' to handle index alignment
-        structured_vehicles = pd.concat([structured_vehicles, program_df], ignore_index=True)
-
-    return summary_df, structured_vehicles
-
-# Example usage:
-# Load your DataFrame 'p1_turret' and use 'Turrets' as the station name
-summary_data, vehicle_data = extract_summary_and_vehicle_data(p1_turret, 'Turrets')
+# Display the data
 print("Summary Data:")
 print(summary_data)
 print("\nVehicle Data:")
