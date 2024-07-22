@@ -1,22 +1,26 @@
-# Assuming 'Teardown' starts right after the 'Tops' marker, and ends before a blank row or next section marker
-# Find the start index for 'Teardown'
-teardown_start_index = tops_index + 1  # The row after 'Tops' is the header for 'Teardown'
+# First, let's identify the starting indices of each station within the "Tops" section
+station_names = ['Teardown', 'Machinging', 'Armor', 'Appur', 'Paint']
+station_indices = {name: tops_data[tops_data['Plant Status'].str.contains(name, na=False)].index.min() for name in station_names}
+station_indices['Bottoms'] = bottoms_index  # To define the end of the last station
 
-# Find the end index for 'Teardown' by locating the first blank row or the start of the next section
-teardown_end_index = tops_data[tops_data.isnull().all(axis=1)].index[0] if not tops_data[tops_data.isnull().all(axis=1)].empty else tops_data.index[-1]
+# Now let's define a function to process each station's table
+def process_station_data(start_index, end_index, data):
+    # Extract data for the current station
+    station_data = data.iloc[start_index:end_index]
+    # Assume the first row after the station name is the header
+    header = station_data.iloc[0]
+    station_data = station_data.iloc[1:]
+    station_data.columns = header.values
+    station_data = station_data.dropna(axis=1, how='all').dropna(axis=0, how='all')  # Clean up the table
+    return station_data
 
-# Extract 'Teardown' data
-teardown_data = tops_data.loc[teardown_start_index:teardown_end_index]
+# Process each station's data using the identified indices
+station_tables = {}
+for i, (name, start_index) in enumerate(station_indices.items()):
+    if i < len(station_indices) - 1:  # Ensure we do not go out of bounds
+        next_station_name = list(station_indices.keys())[i + 1]
+        end_index = station_indices[next_station_name]
+        station_tables[name] = process_station_data(start_index, end_index, tops_data)
 
-# Assuming the row right after 'Teardown' header row is the header for the table
-teardown_header = teardown_data.iloc[0]
-teardown_table = teardown_data.iloc[1:]
-
-# Set the correct header
-teardown_table.columns = teardown_header.values
-
-# Clean up the data table by dropping NaN columns and rows that are entirely NaN
-teardown_table_cleaned = teardown_table.dropna(axis=1, how='all').dropna(axis=0, how='all')
-
-# Show the cleaned table for 'Teardown'
-teardown_table_cleaned
+# Display an example station table, e.g., 'Teardown'
+station_tables['Teardown'].head()
