@@ -1,47 +1,45 @@
 import pandas as pd
 
-def extract_vehicles_and_summary(df):
-    # Reset index for easier manipulation
-    df.reset_index(drop=True, inplace=True)
+def process_p1_turret_data(df):
+    # Find all unique station names in the first row (ignoring NaN values)
+    station_names = df.iloc[0].dropna().unique()
     
-    # Assume 'Armor In' column indicates where station summaries might be restarting
-    # Find indices where 'Armor In' is not NaN which implies the start of a new block
-    starts = df[df['Armor In'].notna()].index.tolist()
+    # Dictionary to hold dataframes for each station
+    station_data = {name: pd.DataFrame() for name in station_names}
     
-    # Assuming the end of one block and start of the next is continuous
-    ends = starts[1:] + [len(df)]  # Add the end of the DataFrame as the end of the last block
+    # Process each station
+    for station in station_names:
+        # Get all column indices for the current station
+        cols = df.columns[df.iloc[0] == station].tolist()
+        
+        # Extract data for the current station
+        station_df = df[cols]
+        
+        # Find the row index for 'Total' which demarcates summary from vehicle data
+        total_idx = station_df[station_df.iloc[:, 0] == 'Total'].index.min()
+        
+        # Summary data includes rows up to and including the 'Total' row
+        summary_df = station_df.iloc[:total_idx + 1]
+        
+        # Vehicle data includes rows after the 'Total' row
+        vehicle_df = station_df.iloc[total_idx + 1:]
+        
+        # Store in dictionary
+        station_data[station] = (summary_df, vehicle_df)
+    
+    return station_data
 
-    summary_list = []
-    vehicle_list = []
-    
-    for start, end in zip(starts, ends):
-        block = df.iloc[start:end].copy()
-        block.dropna(how='all', axis=1, inplace=True)  # Drop columns where all entries are NaN
-        
-        # Find the 'Total' row as the summary separator
-        total_index = block[block.apply(lambda x: 'Total' in x.values, axis=1)].index[0]
-        
-        # Summary information
-        summary_df = block.iloc[:total_index + 1]
-        summary_df['Station'] = df.iloc[start]['Armor In']  # Station name from 'Armor In'
-        summary_list.append(summary_df)
-        
-        # Vehicle information
-        vehicle_df = block.iloc[total_index + 1:]
-        vehicle_df['Station'] = df.iloc[start]['Armor In']  # Station name from 'Armor In'
-        vehicle_list.append(vehicle_df)
-        
-    # Concatenate all blocks into two separate DataFrames
-    all_summary_df = pd.concat(summary_list).reset_index(drop=True)
-    all_vehicle_df = pd.concat(vehicle_list).reset_index(drop=True)
-    
-    return all_summary_df, all_vehicle_df
+# Load your DataFrame here
+# df = pd.read_csv('path_to_your_csv.csv')
 
-# Usage example
-summary_data, vehicle_data = extract_vehicles_and_summary(data)
+# Assuming 'df' is your DataFrame loaded correctly
+processed_data = process_p1_turret_data(df)
 
-# Display the extracted data
-print("Summary Data:")
-print(summary_data)
-print("\nVehicle Data:")
-print(vehicle_data)
+# Example to display data for a specific station
+for station, (summary, vehicles) in processed_data.items():
+    print(f"Station: {station}")
+    print("Summary Data:")
+    print(summary)
+    print("Vehicle Data:")
+    print(vehicles)
+    print("\n")
