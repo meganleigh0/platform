@@ -1,23 +1,48 @@
- Find indices of headers for Teardown and Machinging
-    teardown_index = data_df[data_df.apply(lambda row: row.str.contains('Teardown', na=False)).any(axis=1)].index[0]
-    maching_index = data_df[data_df.apply(lambda row: row.str.contains('Machinging', na=False)).any(axis=1)].index[0]
+import pandas as pd
 
-    # Split the dataframe into two parts for each station
-    teardown_df = data_df.iloc[teardown_index:maching_index].dropna(axis=1, how='all')
-    maching_df = data_df.iloc[maching_index:end_row].dropna(axis=1, how='all')
+def process_station_data(df):
+    """
+    Process station data to extract and organize vehicle and program details.
+    
+    Args:
+    df (pd.DataFrame): DataFrame containing data for a specific section.
+    
+    Returns:
+    pd.DataFrame: Processed DataFrame with structured vehicle and program data.
+    """
+    # Drop any completely empty rows and columns
+    df = df.dropna(how='all').dropna(how='all', axis=1)
 
-    # Clean and reformat the data frames if necessary
-    # Here you would include steps to rename columns, drop unnecessary rows, etc.
-    # Example:
-    teardown_df.columns = ['Contract', 'MRP', 'Actual', 'Delta', 'Flow']
-    maching_df.columns = ['Contract', 'MRP', 'Actual', 'Delta', 'Flow']
+    # Define a new DataFrame to hold the structured data
+    structured_data = pd.DataFrame()
 
-    # Return the cleaned data
-    return teardown_df, maching_df
+    # Iterate over the DataFrame rows
+    for idx, row in df.iterrows():
+        # Check if row contains vehicle and program data based on expected format (e.g., contains VIN or identifier like 'A90')
+        if any(row.str.contains('A90|P20|S40|Y30', regex=True, na=False)):
+            # Extract and process the data
+            for item in row.dropna():
+                # Split the item into its components based on spaces (assuming format like '1234 P20 36')
+                parts = item.split()
+                if len(parts) >= 2:
+                    vin = parts[0]
+                    program = parts[1]
+                    qty = int(parts[2]) if len(parts) == 3 else None  # Include quantity if present
+                    # Append to the DataFrame
+                    structured_data = structured_data.append({
+                        'VIN': vin,
+                        'Program': program,
+                        'Quantity': qty
+                    }, ignore_index=True)
+
+    # If there are named columns for contract, MRP, etc., extract this information too
+    if 'Contract' in df.columns:
+        contract_data = df.loc[df['Contract'].notna(), ['Contract', 'MRP', 'Actual', 'Delta', 'Flow']]
+        structured_data = pd.concat([structured_data, contract_data], axis=1)
+
+    return structured_data
 
 # Example usage:
-teardown_data, maching_data = read_status_report('path_to_your_file.xlsx')
-print("Teardown Data:")
-print(teardown_data)
-print("\nMaching Data:")
-print(maching_data)
+# Assuming you have a DataFrame 'teardown_data' from the 'Teardown' section
+# processed_data = process_station_data(teardown_data)
+# print(processed_data)
