@@ -18,16 +18,10 @@ efficiency = 0.7  # Average efficiency
 # Operation Data
 operation_data = pd.concat([
     pd.DataFrame({
-        'Station': ['STA 0', 'STA 0', 'STA 1', 'STA 1', 'STA 2'],
-        'Operation': ['Build', 'Assemble', 'Tear', 'Dry', 'Paint'],
-        'Program': ['A', 'A', 'A', 'A', 'A'],
-        'Hours': [0.23, 0.3, 0.5, 1.0, 3.0]
-    }),
-    pd.DataFrame({
-        'Station': ['STA 0', 'STA 0', 'STA 1', 'STA 1', 'STA 2'],
-        'Operation': ['Build', 'Assemble', 'Tear', 'Dry', 'Paint'],
-        'Program': ['B', 'B', 'B', 'B', 'B'],
-        'Hours': [0.25, 0.35, 0.55, 1.1, 3.2]
+        'Station': [f'STA {i}' for i in range(18)]*2,
+        'Operation': ['Build', 'Assemble', 'Tear', 'Dry', 'Paint', 'Inspect', 'Transport', 'Test', 'Repair', 'Certify', 'Ship', 'Unload', 'Load', 'Align', 'Install', 'Verify', 'Finalize', 'Pack']*2,
+        'Program': ['A']*18 + ['B']*18,
+        'Hours': [0.23, 0.3, 0.5, 1.0, 3.0, 0.7, 0.4, 2.0, 1.5, 0.8, 1.2, 0.6, 0.9, 1.3, 2.1, 1.8, 1.4, 0.5] + [0.25, 0.35, 0.55, 1.1, 3.2, 0.75, 0.45, 2.1, 1.55, 0.85, 1.25, 0.65, 0.95, 1.35, 2.15, 1.85, 1.45, 0.55]
     })
 ])
 
@@ -94,7 +88,7 @@ def process_hull(env, hull, stations, available_employees):
                 operation_log.append((operation['Operation'], start_time, end_time, current_station, hull['Vin']))
 
             current_station_index = int(current_station.split(' ')[1])
-            if current_station_index < 2:
+            if current_station_index < 17:
                 next_station = 'STA ' + str(current_station_index + 1)
             else:
                 next_station = 'COMPLETED'
@@ -108,7 +102,7 @@ def run_simulation(env, run_time, employee_count, start_date, daily_hull_rate):
     available_employees = [employee_count]
     days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
     
-    stations = {f'STA {i}': Station(env, f'STA {i}') for i in range(3)}  # Adjust range as needed
+    stations = {f'STA {i}': Station(env, f'STA {i}') for i in range(18)}
     
     for day in range(run_time):
         current_day = days[day % len(days)]
@@ -164,3 +158,4 @@ print(operation_df)
 print(line_moves_df)
 print(daily_operator_requirements_df)
 print(attrition_log_df)
+
