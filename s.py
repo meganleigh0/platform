@@ -2,8 +2,6 @@ import simpy
 import pandas as pd
 import random
 import numpy as np
-import plotly.express as px
-import plotly.graph_objects as go
 
 # Simulation Parameters
 attrition_rates = {
@@ -58,54 +56,18 @@ daily_operator_requirements = []
 hulls_processed = []
 attrition_log = []
 
+class Station:
+    def __init__(self, env, name):
+        self.env = env
+        self.name = name
+        self.resource = simpy.Resource(env, capacity=1)
+
 def calculate_attrition(day):
-    """
-    Calculate the attrition rate for a given day.
-    
-    Parameters:
-        day (str): The current day of the simulation.
-    
-    Returns:
-        float: The calculated attrition rate.
-    """
     rate_range = attrition_rates[day]
     return random.uniform(*rate_range)
 
-def downtime_propagation(station_name, env, downtime, station_processes, available_employees):
-    """
-    Handle the propagation of downtime for a station.
-    
-    Parameters:
-        station_name (str): The name of the station experiencing downtime.
-        env (simpy.Environment): The simulation environment.
-        downtime (dict): Dictionary containing downtime information.
-        station_processes (dict): Dictionary of station processes.
-        available_employees (list): List containing the number of available employees.
-    
-    Yields:
-        simpy.Timeout: The timeout event for the downtime duration.
-    """
-    start_time, duration = downtime[station_name]
-    yield env.timeout(start_time)
-    station_processes[station_name].interrupt('downtime')
-    yield env.timeout(duration)
-    station_processes[station_name] = env.process(station_process(env, station_name, available_employees, station_processes))
-
-def operator_allocation(env, station_name, operators_needed, max_operators, available_employees):
-    """
-    Allocate operators to a station for a shift.
-    
-    Parameters:
-        env (simpy.Environment): The simulation environment.
-        station_name (str): The name of the station.
-        operators_needed (int): Number of operators needed.
-        max_operators (int): Maximum number of operators that can be assigned.
-        available_employees (list): List containing the number of available employees.
-    
-    Yields:
-        simpy.Timeout: The timeout event for the duration of the shift.
-    """
-    operators_assigned = min(operators_needed, max_operators, available_employees[0])
+def operator_allocation(env, operators_needed, available_employees):
+    operators_assigned = min(operators_needed, available_employees[0])
     if operators_assigned > 0:
         available_employees[0] -= operators_assigned
         yield env.timeout(shift_duration / operators_assigned)
@@ -113,71 +75,40 @@ def operator_allocation(env, station_name, operators_needed, max_operators, avai
     else:
         yield env.timeout(shift_duration)
 
-def station_process(env, station_name, available_employees, station_processes):
-    """
-    Process operations at a station.
-    
-    Parameters:
-        env (simpy.Environment): The simulation environment.
-        station_name (str): The name of the station.
-        available_employees (list): List containing the number of available employees.
-        station_processes (dict): Dictionary of station processes.
-    
-    Yields:
-        simpy.Timeout: The timeout event for the duration of each operation.
-    """
-    try:
-        while True:
-            current_hull = None
-            for index, row in floor_status.iterrows():
-                if row['Station'] == station_name:
-                    current_hull = row
-                    break
+def process_hull(env, hull, stations, available_employees):
+    while True:
+        current_station = hull['Station']
+        if current_station == 'COMPLETED':
+            break
+        station = stations[current_station]
 
-            if current_hull is not None:
-                operations = operation_data[(operation_data['Station'] == station_name) & (operation_data['Program'] == current_hull['Program'])]
-                parallel_tasks = [env.process(operator_allocation(env, station_name, 1, 3, available_employees)) for _ in range(len(operations))]
-                results = yield simpy.events.AllOf(env, parallel_tasks)
-                
-                for i, (index, operation) in enumerate(operations.iterrows()):
-                    start_time = env.now - shift_duration / len(operations) * (len(operations) - i)
-                    actual_time = operation['Hours'] * random.uniform(0.5, 1.5) * efficiency
-                    end_time = env.now + actual_time
-                    operation_log.append((operation['Operation'], start_time, end_time, station_name, current_hull['Vin']))
-                
-                current_station_index = int(station_name.split(' ')[1])
-                next_station_index = current_station_index + 1
-                if next_station_index <= 17:
-                    next_station = f'STA {next_station_index}'
-                else:
-                    next_station = 'COMPLETED'
-                    hulls_processed.append(current_hull['Vin'])
+        with station.resource.request() as request:
+            yield request
 
-                floor_status.loc[floor_status['Vin'] == current_hull['Vin'], 'Station'] = next_station
-                line_moves.append((env.now, current_hull['Vin'], station_name, next_station))
-                
-                if downtime.get(station_name):
-                    yield env.process(downtime_propagation(station_name, env, downtime, station_processes, available_employees))
+            operations = operation_data[(operation_data['Station'] == current_station) & (operation_data['Program'] == hull['Program'])]
+            for i, (index, operation) in enumerate(operations.iterrows()):
+                actual_time = operation['Hours'] * random.uniform(0.5, 1.5) * efficiency
+                yield env.timeout(actual_time)
+                start_time = env.now - actual_time
+                end_time = env.now
+                operation_log.append((operation['Operation'], start_time, end_time, current_station, hull['Vin']))
+
+            current_station_index = int(current_station.split(' ')[1])
+            if current_station_index < 2:
+                next_station = 'STA ' + str(current_station_index + 1)
             else:
-                yield env.timeout(1)
-    except simpy.Interrupt as interrupt:
-        if interrupt.cause == 'downtime':
-            yield env.timeout(downtime[station_name][1])
+                next_station = 'COMPLETED'
+                hulls_processed.append(hull['Vin'])
+
+            hull['Station'] = next_station
+            line_moves.append((env.now, hull['Vin'], current_station, next_station))
 
 def run_simulation(env, run_time, employee_count, start_date, daily_hull_rate):
-    """
-    Run the simulation.
-    
-    Parameters:
-        env (simpy.Environment): The simulation environment.
-        run_time (int): The number of days to run the simulation.
-        employee_count (int): The total number of employees available.
-        start_date (str): The start date of the simulation.
-        daily_hull_rate (float): The target daily rate of hull production.
-    """
     global floor_status
     available_employees = [employee_count]
     days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
+    
+    stations = {f'STA {i}': Station(env, f'STA {i}') for i in range(3)}  # Adjust range as needed
     
     for day in range(run_time):
         current_day = days[day % len(days)]
@@ -189,24 +120,19 @@ def run_simulation(env, run_time, employee_count, start_date, daily_hull_rate):
             'Available Employees': available_employees[0]
         })
 
-        # Initialize processes for each station
-        station_processes = {}
-        for station_name in operation_data['Station'].unique():
-            station_processes[station_name] = env.process(station_process(env, station_name, available_employees, station_processes))
-
-        # Ensure rate of hulls is met
+        for index, row in floor_status.iterrows():
+            env.process(process_hull(env, row, stations, available_employees))
+        
         hulls_processed_today = 0
         while hulls_processed_today < daily_hull_rate:
             hulls_processed_today += 1
             env.run(until=env.now + shift_duration / daily_hull_rate)
         
-        # Track daily operator requirements
         daily_operator_requirements.append({
             'Day': day + 1,
             'Available Employees': available_employees[0]
         })
 
-        # Pull new hulls into STA 0 if available
         for program, qty in available_hulls.items():
             if qty > 0:
                 if len(floor_status[(floor_status['Station'] == 'STA 0') & (floor_status['Program'] == program)]) < 1:
@@ -215,7 +141,6 @@ def run_simulation(env, run_time, employee_count, start_date, daily_hull_rate):
                     floor_status = pd.concat([floor_status, new_hull], ignore_index=True)
                     available_hulls[program] -= 1
 
-        # Restore employees for the next day
         available_employees[0] = employee_count
 
 # Define scenario parameters
@@ -239,286 +164,3 @@ print(operation_df)
 print(line_moves_df)
 print(daily_operator_requirements_df)
 print(attrition_log_df)
-
-def analyze_efficiency(operation_df, line_moves_df, employee_count, shift_duration):
-    """
-    Analyze the efficiency of the production line.
-    
-    Parameters:
-        operation_df (pd.DataFrame): DataFrame containing operation logs.
-        line_moves_df (pd.DataFrame): DataFrame containing line move logs.
-        employee_count (int): The total number of employees available.
-        shift_duration (int): The duration of each shift in hours.
-    
-    Returns:
-        tuple: A tuple containing station efficiency DataFrame and overall HPU.
-    """
-    # Calculate total hours spent at each station
-    station_hours = operation_df.groupby('Station')['End Time'].sum() - operation_df.groupby('Station')['Start Time'].sum()
-
-    # Calculate the number of vehicles processed by each station
-    vehicles_processed = line_moves_df.groupby('From Station')['Vehicle'].nunique()
-
-    # Calculate HPU per station
-    hpu_per_station = station_hours / vehicles_processed
-
-    # Calculate overall HPU
-    total_hours = operation_df['End Time'].sum() - operation_df['Start Time'].sum()
-    total_vehicles = line_moves_df['Vehicle'].nunique()
-    overall_hpu = total_hours / total_vehicles
-
-    # Determine optimal operator assignment and shifts
-    station_efficiency = {}
-    for station in station_hours.index:
-        hours = station_hours[station]
-        vehicles = vehicles_processed[station]
-        hpu = hpu_per_station[station]
-        daily_hours_needed = hours / run_time
-        recommended_operators = min(3, max(1, int(daily_hours_needed / shift_duration)))
-        recommended_shifts = min(2, max(1, daily_hours_needed / (recommended_operators * shift_duration)))  # Cap shifts at 2
-        station_efficiency[station] = {
-            'Total Hours': hours,
-            'Vehicles Processed': vehicles,
-            'HPU': hpu,
-            'Daily Hours Needed': daily_hours_needed,
-            'Recommended Operators': recommended_operators,
-            'Recommended Shifts': recommended_shifts
-        }
-
-    return station_efficiency, overall_hpu
-
-# Perform the analysis
-station_efficiency, overall_hpu = analyze_efficiency(operation_df, line_moves_df, employee_count, shift_duration)
-
-# Output the analysis results
-station_efficiency_df = pd.DataFrame(station_efficiency).T
-print(station_efficiency_df)
-print(f"Overall HPU: {overall_hpu:.2f}")
-
-def suggest_operator_assignments(station_efficiency, available_employees, run_time):
-    """
-    Suggest operator assignments based on station efficiency.
-    
-    Parameters:
-        station_efficiency (dict): Dictionary containing station efficiency data.
-        available_employees (int): The total number of employees available.
-        run_time (int): The number of days to run the simulation.
-    
-    Returns:
-        pd.DataFrame: DataFrame containing operator assignments.
-    """
-    assignments = []
-    remaining_employees = available_employees
-    for day in range(run_time):
-        daily_assignments = []
-        for station, info in station_efficiency.items():
-            operators = min(info['Recommended Operators'], remaining_employees)
-            shifts = min(2, info['Recommended Shifts'])  # Cap shifts at 2
-            daily_assignments.append({
-                'Day': day + 1,
-                'Station': station,
-                'Assigned Operators': operators,
-                'Assigned Shifts': shifts
-            })
-            remaining_employees -= operators
-
-        assignments.extend(daily_assignments)
-        remaining_employees = available_employees
-
-    return pd.DataFrame(assignments)
-
-# Suggest operator assignments
-assignments_df = suggest_operator_assignments(station_efficiency, employee_count, run_time)
-print(assignments_df)
-
-def weekly_shift_plan(assignments_df, shift_duration):
-    """
-    Calculate the weekly shift plan based on operator assignments.
-    
-    Parameters:
-        assignments_df (pd.DataFrame): DataFrame containing operator assignments.
-        shift_duration (int): The duration of each shift in hours.
-    
-    Returns:
-        float: Estimated number of weeks needed to complete production.
-    """
-    total_shifts = assignments_df['Assigned Shifts'].sum()
-    total_hours_needed = total_shifts * shift_duration
-    weeks_needed = total_hours_needed / (assignments_df['Day'].max() * shift_duration)
-    return weeks_needed
-
-weeks_needed = weekly_shift_plan(assignments_df, shift_duration)
-print(f"Estimated Weeks Needed to Complete Production: {weeks_needed:.2f}")
-
-def rebalance_for_downtime(station_name, day, downtime_duration, station_efficiency, available_employees):
-    """
-    Rebalance operator assignments for a station experiencing downtime.
-    
-    Parameters:
-        station_name (str): The name of the station experiencing downtime.
-        day (int): The day on which the downtime occurs.
-        downtime_duration (int): The duration of the downtime in hours.
-        station_efficiency (dict): Dictionary containing station efficiency data.
-        available_employees (int): The total number of employees available.
-    
-    Returns:
-        dict: Updated station efficiency dictionary.
-    """
-    for station, info in station_efficiency.items():
-        if station == station_name:
-            daily_hours_needed = info['Daily Hours Needed'] + downtime_duration
-            recommended_operators = min(3, max(1, int(daily_hours_needed / shift_duration)))
-            recommended_shifts = min(2, max(1, daily_hours_needed / (recommended_operators * shift_duration)))  # Cap shifts at 2
-            station_efficiency[station] = {
-                'Total Hours': info['Total Hours'],
-                'Vehicles Processed': info['Vehicles Processed'],
-                'HPU': info['HPU'],
-                'Daily Hours Needed': daily_hours_needed,
-                'Recommended Operators': recommended_operators,
-                'Recommended Shifts': recommended_shifts
-            }
-    return station_efficiency
-
-# Example of rebalancing for downtime at STA 1 on day 3 with 2 hours downtime
-rebalanced_station_efficiency = rebalance_for_downtime('STA 1', 3, 2, station_efficiency, employee_count)
-rebalanced_station_efficiency_df = pd.DataFrame(rebalanced_station_efficiency).T
-print(rebalanced_station_efficiency_df)
-
-# Function to plot the number of operations completed over time
-def plot_operations_over_time(operation_df):
-    """
-    Plot the number of operations completed over time.
-    
-    Parameters:
-        operation_df (pd.DataFrame): DataFrame containing operation logs.
-    """
-    fig = px.line(operation_df, x='End Time', y=operation_df.index, title='Number of Operations Completed Over Time', labels={'index': 'Operations Completed', 'End Time': 'Time'})
-    fig.show()
-
-# Function to plot the number of vehicles at each station over time
-def plot_vehicles_per_station(line_moves_df):
-    """
-    Plot the number of vehicles at each station over time.
-    
-    Parameters:
-        line_moves_df (pd.DataFrame): DataFrame containing line move logs.
-    """
-    station_counts = line_moves_df.groupby(['Time', 'To Station']).size().reset_index(name='Count')
-    fig = px.scatter(station_counts, x='Time', y='To Station', size='Count', title='Vehicles at Each Station Over Time', labels={'Count': 'Number of Vehicles'})
-    fig.show()
-
-# Function to plot HPU per station
-def plot_hpu_per_station(station_efficiency_df):
-    """
-    Plot the HPU (Hours per Unit) per station.
-    
-    Parameters:
-        station_efficiency_df (pd.DataFrame): DataFrame containing station efficiency data.
-    """
-    fig = px.bar(station_efficiency_df, x=station_efficiency_df.index, y='HPU', title='HPU per Station', labels={'index': 'Station', 'HPU': 'Hours per Unit'})
-    fig.show()
-
-# Function to plot operator assignments
-def plot_operator_assignments(assignments_df):
-    """
-    Plot the operator assignments per day.
-    
-    Parameters:
-        assignments_df (pd.DataFrame): DataFrame containing operator assignments.
-    """
-    fig = px.bar(assignments_df, x='Day', y='Assigned Operators', color='Station', title='Operator Assignments per Day', labels={'Assigned Operators': 'Number of Operators'})
-    fig.show()
-
-# Generate plots
-plot_operations_over_time(operation_df)
-plot_vehicles_per_station(line_moves_df)
-plot_hpu_per_station(station_efficiency_df)
-plot_operator_assignments(assignments_df)
-
-# Calculate downtime impact
-def calculate_downtime_impact(line_moves_df, downtime, run_time, shift_duration):
-    """
-    Calculate the impact of downtime on the production line.
-    
-    Parameters:
-        line_moves_df (pd.DataFrame): DataFrame containing line move logs.
-        downtime (dict): Dictionary containing downtime information.
-        run_time (int): The number of days the simulation ran.
-        shift_duration (int): The duration of each shift in hours.
-    
-    Returns:
-        pd.DataFrame: DataFrame containing downtime impact data.
-    """
-    total_simulation_time = run_time * shift_duration
-    downtime_impact = []
-    
-    for station, (start_time, duration) in downtime.items():
-        downtime_percentage = (duration / total_simulation_time) * 100
-        downtime_impact.append({
-            'Station': station,
-            'Downtime Hours': duration,
-            'Downtime Percentage': downtime_percentage
-        })
-    
-    downtime_impact_df = pd.DataFrame(downtime_impact)
-    return downtime_impact_df
-
-# Calculate employee utilization
-def calculate_employee_utilization(daily_operator_requirements_df, employee_count, shift_duration):
-    """
-    Calculate the utilization of employees during the simulation.
-    
-    Parameters:
-        daily_operator_requirements_df (pd.DataFrame): DataFrame containing daily operator requirements.
-        employee_count (int): The total number of employees available.
-        shift_duration (int): The duration of each shift in hours.
-    
-    Returns:
-        dict: Dictionary containing employee utilization metrics.
-    """
-    total_simulation_hours = len(daily_operator_requirements_df) * shift_duration * employee_count
-    active_hours = daily_operator_requirements_df['Available Employees'].sum() * shift_duration
-    utilization_percentage = (active_hours / total_simulation_hours) * 100
-    
-    return {
-        'Total Simulation Hours': total_simulation_hours,
-        'Active Hours': active_hours,
-        'Utilization Percentage': utilization_percentage
-    }
-
-# Generate downtime impact analysis
-downtime_impact_df = calculate_downtime_impact(line_moves_df, downtime, run_time, shift_duration)
-print(downtime_impact_df)
-
-# Generate employee utilization analysis
-employee_utilization = calculate_employee_utilization(daily_operator_requirements_df, employee_count, shift_duration)
-print(employee_utilization)
-
-# Function to plot downtime impact
-def plot_downtime_impact(downtime_impact_df):
-    """
-    Plot the impact of downtime per station.
-    
-    Parameters:
-        downtime_impact_df (pd.DataFrame): DataFrame containing downtime impact data.
-    """
-    fig = px.bar(downtime_impact_df, x='Station', y='Downtime Hours', title='Downtime Impact per Station', labels={'Downtime Hours': 'Downtime (Hours)'})
-    fig.show()
-
-# Function to plot employee utilization
-def plot_employee_utilization(employee_utilization):
-    """
-    Plot the utilization of employees.
-    
-    Parameters:
-        employee_utilization (dict): Dictionary containing employee utilization metrics.
-    """
-    labels = ['Active Hours', 'Idle Hours']
-    values = [employee_utilization['Active Hours'], employee_utilization['Total Simulation Hours'] - employee_utilization['Active Hours']]
-    fig = go.Figure(data=[go.Pie(labels=labels, values=values, hole=.3)])
-    fig.update_layout(title_text='Employee Utilization')
-    fig.show()
-
-# Generate plots
-plot_downtime_impact(downtime_impact_df)
-plot_employee_utilization(employee_utilization)
