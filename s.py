@@ -56,6 +56,7 @@ operation_log = []
 line_moves = []
 daily_operator_requirements = []
 hulls_processed = []
+attrition_log = []
 
 def calculate_attrition(day):
     rate_range = attrition_rates[day]
@@ -121,10 +122,13 @@ def run_simulation(env, run_time, employee_count, start_date, daily_hull_rate):
     
     for day in range(run_time):
         current_day = days[day % len(days)]
-        print(f"Day {day + 1} ({current_day}):")
         attrition = calculate_attrition(current_day)
         available_employees[0] -= int(available_employees[0] * attrition)
-        print(f"  Available employees after attrition: {available_employees[0]}")
+        
+        attrition_log.append({
+            'Day': day + 1,
+            'Available Employees': available_employees[0]
+        })
 
         # Initialize processes for each station
         station_processes = {}
@@ -148,7 +152,8 @@ def run_simulation(env, run_time, employee_count, start_date, daily_hull_rate):
             if qty > 0:
                 if len(floor_status[(floor_status['Station'] == 'STA 0') & (floor_status['Program'] == program)]) < 1:
                     new_hull_vin = f'HULL{len(floor_status) + 1}'
-                    floor_status = floor_status.append({'Vin': new_hull_vin, 'Station': 'STA 0', 'Program': program}, ignore_index=True)
+                    new_hull = pd.DataFrame({'Vin': [new_hull_vin], 'Station': ['STA 0'], 'Program': [program]})
+                    floor_status = pd.concat([floor_status, new_hull], ignore_index=True)
                     available_hulls[program] -= 1
 
         # Restore employees for the next day
@@ -169,10 +174,12 @@ run_simulation(env, run_time, employee_count, start_date, daily_hull_rate)
 operation_df = pd.DataFrame(operation_log, columns=['Operation', 'Start Time', 'End Time', 'Station', 'Vehicle'])
 line_moves_df = pd.DataFrame(line_moves, columns=['Time', 'Vehicle', 'From Station', 'To Station'])
 daily_operator_requirements_df = pd.DataFrame(daily_operator_requirements)
+attrition_log_df = pd.DataFrame(attrition_log)
 
 print(operation_df)
 print(line_moves_df)
 print(daily_operator_requirements_df)
+print(attrition_log_df)
 
 def analyze_efficiency(operation_df, line_moves_df, employee_count, shift_duration):
     # Calculate total hours spent at each station
