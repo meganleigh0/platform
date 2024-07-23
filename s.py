@@ -204,7 +204,7 @@ def analyze_efficiency(operation_df, line_moves_df, employee_count, shift_durati
         hpu = hpu_per_station[station]
         daily_hours_needed = hours / run_time
         recommended_operators = min(3, max(1, int(daily_hours_needed / shift_duration)))
-        recommended_shifts = max(1, daily_hours_needed / (recommended_operators * shift_duration))
+        recommended_shifts = min(2, max(1, daily_hours_needed / (recommended_operators * shift_duration)))  # Cap shifts at 2
         station_efficiency[station] = {
             'Total Hours': hours,
             'Vehicles Processed': vehicles,
@@ -231,7 +231,7 @@ def suggest_operator_assignments(station_efficiency, available_employees, run_ti
         daily_assignments = []
         for station, info in station_efficiency.items():
             operators = min(info['Recommended Operators'], remaining_employees)
-            shifts = info['Recommended Shifts']
+            shifts = min(2, info['Recommended Shifts'])  # Cap shifts at 2
             daily_assignments.append({
                 'Day': day + 1,
                 'Station': station,
@@ -263,7 +263,7 @@ def rebalance_for_downtime(station_name, day, downtime_duration, station_efficie
         if station == station_name:
             daily_hours_needed = info['Daily Hours Needed'] + downtime_duration
             recommended_operators = min(3, max(1, int(daily_hours_needed / shift_duration)))
-            recommended_shifts = max(1, daily_hours_needed / (recommended_operators * shift_duration))
+            recommended_shifts = min(2, max(1, daily_hours_needed / (recommended_operators * shift_duration)))  # Cap shifts at 2
             station_efficiency[station] = {
                 'Total Hours': info['Total Hours'],
                 'Vehicles Processed': info['Vehicles Processed'],
