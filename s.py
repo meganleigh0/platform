@@ -34,16 +34,16 @@ operation_data = pd.concat([
 ])
 
 # Available Hulls
-available_hulls = pd.DataFrame({
-    'Program': ['A', 'B'],
-    'Qty': [5, 3]
-})
+available_hulls = {
+    'A': 5,
+    'B': 3
+}
 
-# Floor Status
+# Initial Floor Status
 floor_status = pd.DataFrame({
-    'Vin': [f'HULL{i+1}' for i in range(sum(available_hulls['Qty']))],
-    'Station': ['STA 0'] * available_hulls['Qty'][0] + [''] * available_hulls['Qty'][1],
-    'Program': ['A'] * available_hulls['Qty'][0] + ['B'] * available_hulls['Qty'][1]
+    'Vin': ['Hull 1', 'Hull 2', 'Hull 3'],
+    'Station': ['STA 0', 'STA 1', 'STA 2'],
+    'Program': ['A', 'A', 'A']
 })
 
 # Downtime
@@ -55,6 +55,7 @@ downtime = {
 operation_log = []
 line_moves = []
 daily_operator_requirements = []
+hulls_processed = []
 
 def calculate_attrition(day):
     rate_range = attrition_rates[day]
@@ -65,7 +66,7 @@ def downtime_propagation(station_name, env, downtime, station_processes, availab
     yield env.timeout(start_time)
     station_processes[station_name].interrupt('downtime')
     yield env.timeout(duration)
-    station_processes[station_name] = env.process(station(env, station_name, available_employees, station_processes))
+    station_processes[station_name] = env.process(station_process(env, station_name, available_employees, station_processes))
 
 def operator_allocation(env, station_name, operators_needed, max_operators, available_employees):
     operators_assigned = min(operators_needed, max_operators, available_employees[0])
@@ -76,17 +77,17 @@ def operator_allocation(env, station_name, operators_needed, max_operators, avai
     else:
         yield env.timeout(shift_duration)
 
-def station(env, station_name, available_employees, station_processes):
+def station_process(env, station_name, available_employees, station_processes):
     try:
         while True:
             current_hull = None
             for index, row in floor_status.iterrows():
                 if row['Station'] == station_name:
-                    current_hull = row['Vin']
-                    program = row['Program']
+                    current_hull = row
                     break
+
             if current_hull is not None:
-                operations = operation_data[(operation_data['Station'] == station_name) & (operation_data['Program'] == program)]
+                operations = operation_data[(operation_data['Station'] == station_name) & (operation_data['Program'] == current_hull['Program'])]
                 parallel_tasks = [env.process(operator_allocation(env, station_name, 1, 3, available_employees)) for _ in range(len(operations))]
                 results = yield simpy.events.AllOf(env, parallel_tasks)
                 
@@ -94,11 +95,16 @@ def station(env, station_name, available_employees, station_processes):
                     start_time = env.now - shift_duration / len(operations) * (len(operations) - i)
                     actual_time = operation['Hours'] * random.uniform(0.5, 1.5) * efficiency
                     end_time = env.now + actual_time
-                    operation_log.append((operation['Operation'], start_time, end_time, station_name, current_hull))
+                    operation_log.append((operation['Operation'], start_time, end_time, station_name, current_hull['Vin']))
                 
-                next_station = 'STA ' + str(int(station_name.split(' ')[1]) + 1)
-                floor_status.loc[floor_status['Vin'] == current_hull, 'Station'] = next_station
-                line_moves.append((env.now, current_hull, station_name, next_station))
+                current_station_index = int(station_name.split(' ')[1])
+                if current_station_index < 2:
+                    next_station = 'STA ' + str(current_station_index + 1)
+                else:
+                    next_station = 'COMPLETED'
+                    hulls_processed.append(current_hull['Vin'])
+                floor_status.loc[floor_status['Vin'] == current_hull['Vin'], 'Station'] = next_station
+                line_moves.append((env.now, current_hull['Vin'], station_name, next_station))
                 
                 if downtime.get(station_name):
                     yield env.process(downtime_propagation(station_name, env, downtime, station_processes, available_employees))
@@ -108,7 +114,8 @@ def station(env, station_name, available_employees, station_processes):
         if interrupt.cause == 'downtime':
             yield env.timeout(downtime[station_name][1])
 
-def run_simulation(env, run_time, employee_count, start_date):
+def run_simulation(env, run_time, employee_count, start_date, daily_hull_rate):
+    global floor_status
     available_employees = [employee_count]
     days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
     
@@ -122,17 +129,28 @@ def run_simulation(env, run_time, employee_count, start_date):
         # Initialize processes for each station
         station_processes = {}
         for station_name in operation_data['Station'].unique():
-            station_processes[station_name] = env.process(station(env, station_name, available_employees, station_processes))
+            station_processes[station_name] = env.process(station_process(env, station_name, available_employees, station_processes))
 
+        # Ensure rate of hulls is met
+        hulls_processed_today = 0
+        while hulls_processed_today < daily_hull_rate:
+            hulls_processed_today += 1
+            env.run(until=env.now + shift_duration / daily_hull_rate)
+        
         # Track daily operator requirements
         daily_operator_requirements.append({
             'Day': day + 1,
             'Available Employees': available_employees[0]
         })
 
-        # Run the simulation for one day (8 hours shift)
-        env.run(until=(day + 1) * shift_duration)
-        
+        # Pull new hulls into STA 0 if available
+        for program, qty in available_hulls.items():
+            if qty > 0:
+                if len(floor_status[(floor_status['Station'] == 'STA 0') & (floor_status['Program'] == program)]) < 1:
+                    new_hull_vin = f'HULL{len(floor_status) + 1}'
+                    floor_status = floor_status.append({'Vin': new_hull_vin, 'Station': 'STA 0', 'Program': program}, ignore_index=True)
+                    available_hulls[program] -= 1
+
         # Restore employees for the next day
         available_employees[0] = employee_count
 
@@ -145,7 +163,7 @@ run_time = 10
 env = simpy.Environment()
 
 # Run the simulation
-run_simulation(env, run_time, employee_count, start_date)
+run_simulation(env, run_time, employee_count, start_date, daily_hull_rate)
 
 # Output results
 operation_df = pd.DataFrame(operation_log, columns=['Operation', 'Start Time', 'End Time', 'Station', 'Vehicle'])
@@ -261,7 +279,6 @@ def plot_operations_over_time(operation_df):
 
 # Function to plot the number of vehicles at each station over time
 def plot_vehicles_per_station(line_moves_df):
-    line_moves_df['Count'] = 1
     station_counts = line_moves_df.groupby(['Time', 'To Station']).size().reset_index(name='Count')
     fig = px.scatter(station_counts, x='Time', y='To Station', size='Count', title='Vehicles at Each Station Over Time', labels={'Count': 'Number of Vehicles'})
     fig.show()
