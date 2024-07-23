@@ -1,81 +1,9 @@
-Resource Optimization:
-The simulation helps optimize resource allocation by providing insights into operator utilization and identifying bottlenecks caused by downtime or inefficiencies.
-Scenario Analysis:
-Different scenarios, such as varying attrition rates, downtimes, or changes in production rates, can be simulated to see their impact on the production line. This helps in proactive planning and decision-making.
-Dynamic Adjustments:
-The ability to dynamically adjust operator assignments and shifts based on real-time data and simulation outcomes ensures that the production line can adapt to changing conditions, such as unexpected downtimes or operator shortages.
-Performance Metrics:
-Metrics such as HPU, production rates, and station efficiency provide quantitative insights into the performance of the production line. These metrics can guide continuous improvement efforts and strategic planning.Inputs
-Operation Data:
-
-Details the operations, time required, and station for each program.
-Example: {'Station': 'STA 0', 'Operation': 'Build', 'Hours': 0.23}
-Available Hulls:
-
-The number of hulls available for each program.
-Example: {'Program': 'A', 'Qty': 5}
-Employee Count:
-
-Number of employees available to work on the line.
-Example: employee_count = 5
-Start Date:
-
-Day of the week the simulation starts on.
-Example: start_date = 'Monday'
-Run Time:
-
-Number of days to run the simulation.
-Example: run_time = 10
-Downtime:
-
-Scheduled downtimes for stations.
-Example: {'STA 1': (4, 2)} (STA 1 is down from hour 4 to hour 6)
-Outputs
-Operation Log:
-
-Detailed log of each operation, including start and end times, station, and vehicle.
-Line Moves:
-
-Log of vehicle movements between stations.
-Daily Operator Requirements:
-
-Number of operators available each day after attrition.
-Simulation Logic
-Initialization:
-
-Load operation data, available hulls, and initial floor status.
-Set up downtime schedule.
-Dynamic Attrition:
-
-Apply daily attrition rates based on the day of the week.
-Operator Assignment:
-
-Assign operators to stations, ensuring no station exceeds the maximum operators allowed.
-Random Efficiency:
-
-Operation times are adjusted randomly to simulate real-world variability.
-Downtime Handling:
-
-If a station is scheduled for downtime, it interrupts the current process and resumes after the downtime period.
-Run Simulation:
-
-Simulate each day, updating the floor status and logging operations and vehicle movements.
-Constraints
-Max 3 Operators per Station:
-
-No more than 3 operators can be assigned to a station at a time.
-One Shift per Day:
-
-Each station typically runs one 8-hour shift per day.
-Attrition Rates:
-
-Vary by day, causing a reduction in the number of available operators.
-Random Operation Times:
-
-Efficiency impacts operation times, introducing variability.import simpy
+import simpy
 import pandas as pd
 import random
 import numpy as np
+import plotly.express as px
+import plotly.graph_objects as go
 
 # Simulation Parameters
 attrition_rates = {
@@ -207,6 +135,7 @@ def run_simulation(env, run_time, employee_count, start_date):
         
         # Restore employees for the next day
         available_employees[0] = employee_count
+
 # Define scenario parameters
 employee_count = 15
 start_date = 'Monday'
@@ -226,6 +155,7 @@ daily_operator_requirements_df = pd.DataFrame(daily_operator_requirements)
 print(operation_df)
 print(line_moves_df)
 print(daily_operator_requirements_df)
+
 def analyze_efficiency(operation_df, line_moves_df, employee_count, shift_duration):
     # Calculate total hours spent at each station
     station_hours = operation_df.groupby('Station')['End Time'].sum() - operation_df.groupby('Station')['Start Time'].sum()
@@ -249,7 +179,7 @@ def analyze_efficiency(operation_df, line_moves_df, employee_count, shift_durati
         hpu = hpu_per_station[station]
         daily_hours_needed = hours / run_time
         recommended_operators = min(3, max(1, int(daily_hours_needed / shift_duration)))
-        recommended_shifts = min(3, max(1, int(daily_hours_needed / (recommended_operators * shift_duration))))
+        recommended_shifts = max(1, daily_hours_needed / (recommended_operators * shift_duration))
         station_efficiency[station] = {
             'Total Hours': hours,
             'Vehicles Processed': vehicles,
@@ -308,7 +238,7 @@ def rebalance_for_downtime(station_name, day, downtime_duration, station_efficie
         if station == station_name:
             daily_hours_needed = info['Daily Hours Needed'] + downtime_duration
             recommended_operators = min(3, max(1, int(daily_hours_needed / shift_duration)))
-            recommended_shifts = min(3, max(1, int(daily_hours_needed / (recommended_operators * shift_duration))))
+            recommended_shifts = max(1, daily_hours_needed / (recommended_operators * shift_duration))
             station_efficiency[station] = {
                 'Total Hours': info['Total Hours'],
                 'Vehicles Processed': info['Vehicles Processed'],
@@ -323,8 +253,6 @@ def rebalance_for_downtime(station_name, day, downtime_duration, station_efficie
 rebalanced_station_efficiency = rebalance_for_downtime('STA 1', 3, 2, station_efficiency, employee_count)
 rebalanced_station_efficiency_df = pd.DataFrame(rebalanced_station_efficiency).T
 print(rebalanced_station_efficiency_df)
-import plotly.express as px
-import plotly.graph_objects as go
 
 # Function to plot the number of operations completed over time
 def plot_operations_over_time(operation_df):
