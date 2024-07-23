@@ -1,19 +1,26 @@
 import plotly.express as px
 import pandas as pd
 
-# Sample DataFrame
+# Assuming you have loaded your DataFrame, replace 'df' with your DataFrame variable
+# Example DataFrame creation for demonstration
 data = {
-    'Operation': ['Op1', 'Op2', 'Op3', 'Op4'],
-    'Start Time': ['2024-07-01 08:00:00', '2024-07-01 09:00:00', '2024-07-01 10:00:00', '2024-07-01 11:00:00'],
-    'End Time': ['2024-07-01 09:00:00', '2024-07-01 10:00:00', '2024-07-01 11:00:00', '2024-07-01 12:00:00'],
-    'Station': ['S1', 'S2', 'S1', 'S3'],
-    'Vehicle': ['V1', 'V2', 'V1', 'V3']
+    'Operation': ['SCAVENGE MANIFOLD', 'WATER SEPARATOR', 'FUEL PUMP', 'FILTER'],
+    'Start Time': [0.000000, 0.275862, 0.551724, 0.827586],
+    'End Time': [8.076832, 8.039420, 8.043148, 8.333181],
+    'Station': ['STA 11', 'STA 11', 'STA 11', 'STA 11'],
+    'Vehicle': ['Hull 3', 'Hull 3', 'Hull 3', 'Hull 3']
 }
 df = pd.DataFrame(data)
 
-# Convert time columns to datetime
-df['Start Time'] = pd.to_datetime(df['Start Time'])
-df['End Time'] = pd.to_datetime(df['End Time'])
+# Convert the time to a proper datetime format
+# Here assuming times are in hours and converting them to timedelta
+df['Start Time'] = pd.to_timedelta(df['Start Time'], unit='h')
+df['End Time'] = pd.to_timedelta(df['End Time'], unit='h')
+
+# For plotting, we need a reference date, assuming all times are relative to the same day
+reference_date = pd.Timestamp('2024-07-01')
+df['Start Time'] = reference_date + df['Start Time']
+df['End Time'] = reference_date + df['End Time']
 
 # Create Gantt chart using Plotly Express
 fig = px.timeline(df, x_start="Start Time", x_end="End Time", y="Station", color="Vehicle", title='Operation Timeline')
