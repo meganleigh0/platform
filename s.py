@@ -186,3 +186,8 @@ operation_df = pd.DataFrame(operation_log, columns=['Operation', 'Start Time', '
 line_moves_df = pd.DataFrame(line_moves, columns=['Time', 'Vehicle', 'From Station', 'To Station'])
 attrition_log_df = pd.DataFrame(attrition_log)
 operator_assignment_df = pd.DataFrame(operator_assignment_log, columns=['OperatorID', 'Station', 'Start Time', 'End Time'])
+
+import ace_tools as tools; tools.display_dataframe_to_user(name="Operation Log", dataframe=operation_df)
+tools.display_dataframe_to_user(name="Line Moves", dataframe=line_moves_df)
+tools.display_dataframe_to_user(name="Attrition Log", dataframe=attrition_log_df)
+tools.display_dataframe_to_user(name="Operator Assignment Log", dataframe=operator_assignment_df)
