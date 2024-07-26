@@ -17,20 +17,20 @@ efficiency = 0.7  # Average efficiency
 block_duration = 2  # hours
 
 # Operation Data
-operation_data = pd.DataFrame({
-    'Station': ['STA 0', 'STA 1', 'STA 2', 'STA 3', 'STA 4', 'STA 5', 'STA 6', 'STA 7', 'STA 8', 'STA 9', 
-                'STA 10', 'STA 11', 'STA 12', 'STA 13', 'STA 14', 'STA 15', 'STA 16', 'STA 0', 'STA 1', 'STA 2', 
-                'STA 3', 'STA 4', 'STA 5', 'STA 6', 'STA 7', 'STA 8', 'STA 9', 'STA 10', 'STA 11', 'STA 12', 
-                'STA 13', 'STA 14', 'STA 15', 'STA 16'],
-    'Operation': ['Build_0', 'Build_1', 'Build_2', 'Build_3', 'Build_4', 'Build_5', 'Build_6', 'Build_7', 
-                  'Build_8', 'Build_9', 'Build_10', 'Build_11', 'Build_12', 'Build_13', 'Build_14', 'Build_15', 
-                  'Build_16', 'Build_0', 'Build_1', 'Build_2', 'Build_3', 'Build_4', 'Build_5', 'Build_6', 
-                  'Build_7', 'Build_8', 'Build_9', 'Build_10', 'Build_11', 'Build_12', 'Build_13', 'Build_14', 
-                  'Build_15', 'Build_16'],
-    'Program': ['A']*17 + ['B']*17,
-    'Hours': [0.23, 0.3, 0.5, 1.0, 3.0, 0.25, 0.35, 0.55, 1.1, 3.2, 0.25, 0.35, 0.55, 1.1, 3.2, 0.23, 0.3, 
-              0.5, 1.0, 3.0, 0.25, 0.35, 0.55, 1.1, 3.2, 0.25, 0.35, 0.55, 1.1, 3.2, 0.23, 0.3, 0.5, 1.0, 3.0]
-})
+operation_data = pd.concat([
+    pd.DataFrame({
+        'Station': [f'STA {i}' for i in range(17)],
+        'Operation': [f'Build_{i}' for i in range(17)],
+        'Program': ['A'] * 17,
+        'Hours': [0.23, 0.3, 0.5, 1.0, 3.0, 0.25, 0.35, 0.55, 1.1, 3.2, 0.25, 0.35, 0.55, 1.1, 3.2, 0.23, 0.3]
+    }),
+    pd.DataFrame({
+        'Station': [f'STA {i}' for i in range(17)],
+        'Operation': [f'Build_{i}' for i in range(17)],
+        'Program': ['B'] * 17,
+        'Hours': [0.25, 0.35, 0.55, 1.1, 3.2, 0.25, 0.35, 0.55, 1.1, 3.2, 0.25, 0.35, 0.55, 1.1, 3.2, 0.23, 0.3]
+    })
+])
 
 # Available Hulls
 available_hulls = {
@@ -40,12 +40,9 @@ available_hulls = {
 
 # Initial Floor Status
 floor_status = pd.DataFrame({
-    'Vin': ['TESTHull1', 'TESTHull2', 'TESTHull3', 'TESTHull4', 'TESTHull5', 'TESTHull6', 'TESTHull7', 'TESTHull8',
-            'TESTHull9', 'TESTHull10', 'TESTHull11', 'TESTHull12', 'TESTHull13', 'TESTHull14', 'TESTHull15', 
-            'TESTHull16', 'TESTHull17'],
-    'Station': ['STA 0', 'STA 1', 'STA 2', 'STA 3', 'STA 4', 'STA 5', 'STA 6', 'STA 7', 'STA 8', 'STA 9', 'STA 10', 
-                'STA 11', 'STA 12', 'STA 13', 'STA 14', 'STA 15', 'STA 16'],
-    'Program': ['A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A']
+    'Vin': [f'TESTHull{i}' for i in range(1, 18)],
+    'Station': [f'STA {i}' for i in range(17)],
+    'Program': ['A'] * 17
 })
 
 # Downtime
@@ -130,22 +127,24 @@ def run_simulation(env, run_time, employee_count, start_date, daily_hull_rate):
         for _ in range(num_cycles):
             env.run(until=env.now + (8 / daily_hull_rate))
 
-        for index, hull in floor_status.iterrows():
-            current_station = hull['Station']
-            if current_station != 'COMPLETED':
-                current_station_index = int(current_station.split(' ')[1])
-                next_station = f'STA {current_station_index + 1}'
-                if current_station_index < 16 and not stations[next_station].capacity.users:
-                    floor_status.at[index, 'Station'] = next_station
-                    line_moves.append((env.now, hull['Vin'], current_station, next_station))
-        
-        for program, qty in available_hulls.items():
-            if qty > 0:
-                if len(floor_status[(floor_status['Station'] == 'STA 0') & (floor_status['Program'] == program)]) < 1:
-                    new_hull_vin = f'HULL{len(floor_status) + 1}'
-                    new_hull = pd.DataFrame({'Vin': [new_hull_vin], 'Station': ['STA 0'], 'Program': [program]})
-                    floor_status = pd.concat([floor_status, new_hull], ignore_index=True)
-                    available_hulls[program] -= 1
+            # Check if all hulls at current stations are complete and move to the next station
+            for index, hull in floor_status.iterrows():
+                current_station = hull['Station']
+                if current_station != 'COMPLETED':
+                    current_station_index = int(current_station.split(' ')[1])
+                    next_station = f'STA {current_station_index + 1}'
+                    if current_station_index < 16 and not stations[next_station].capacity.users:
+                        floor_status.at[index, 'Station'] = next_station
+                        line_moves.append((env.now, hull['Vin'], current_station, next_station))
+
+            # Pull a new hull onto the line at station 0 if available
+            for program, qty in available_hulls.items():
+                if qty > 0:
+                    if len(floor_status[(floor_status['Station'] == 'STA 0') & (floor_status['Program'] == program)]) < 1:
+                        new_hull_vin = f'HULL{len(floor_status) + 1}'
+                        new_hull = pd.DataFrame({'Vin': [new_hull_vin], 'Station': ['STA 0'], 'Program': [program]})
+                        floor_status = pd.concat([floor_status, new_hull], ignore_index=True)
+                        available_hulls[program] -= 1
 
         available_employees[0] = employee_count
 
@@ -165,3 +164,8 @@ operation_df = pd.DataFrame(operation_log, columns=['Operation', 'Start Time', '
 line_moves_df = pd.DataFrame(line_moves, columns=['Time', 'Vehicle', 'From Station', 'To Station'])
 attrition_log_df = pd.DataFrame(attrition_log)
 operator_assignment_df = pd.DataFrame(operator_assignment_log, columns=['OperatorID', 'Station', 'Start Time', 'End Time'])
+
+import ace_tools as tools; tools.display_dataframe_to_user(name="Operation Log", dataframe=operation_df)
+tools.display_dataframe_to_user(name="Line Moves", dataframe=line_moves_df)
+tools.display_dataframe_to_user(name="Attrition Log", dataframe=attrition_log_df)
+tools.display_dataframe_to_user(name="Operator Assignment Log", dataframe=operator_assignment_df)
