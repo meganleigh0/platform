@@ -14,6 +14,7 @@ attrition_rates = {
 shift_duration = 8  # hours
 daily_hull_rate = 1.25
 efficiency = 0.7  # Average efficiency
+block_duration = 2  # hours
 
 # Operation Data
 operation_data = pd.concat([
@@ -54,20 +55,21 @@ operation_log = []
 line_moves = []
 operator_assignment_log = []
 attrition_log = []
+hulls_processed = []
 
 class Station:
     def __init__(self, env, name):
         self.env = env
         self.name = name
-        self.resource = simpy.Resource(env, capacity=3)
-        self.is_busy = False
+        self.capacity = simpy.Resource(env, capacity=1)  # Only one hull at a time
+        self.operator_capacity = simpy.Resource(env, capacity=3)  # Up to 3 operators
 
 def calculate_attrition(day):
     rate_range = attrition_rates[day]
     return random.uniform(*rate_range)
 
-def operator_allocation(env, station, operation, hull, operator, duration):
-    with station.resource.request() as request:
+def operator_allocation(env, station, operation, hull, operator):
+    with station.operator_capacity.request() as request:
         yield request
         start_time = env.now
         actual_time = operation['Hours'] * random.uniform(0.5, 1.5) * efficiency
@@ -83,22 +85,20 @@ def process_hull(env, hull, stations, operators):
             break
         station = stations[current_station]
 
-        operations = operation_data[(operation_data['Station'] == current_station) & (operation_data['Program'] == hull['Program'])]
-        parallel_tasks = [env.process(operator_allocation(env, station, operation, hull, operator, 2)) for operator in operators for _, operation in operations.iterrows()]
-        yield simpy.events.AllOf(env, parallel_tasks)
+        with station.capacity.request() as request:
+            yield request
+            operations = operation_data[(operation_data['Station'] == current_station) & (operation_data['Program'] == hull['Program'])]
+            parallel_tasks = [env.process(operator_allocation(env, station, operation, hull, operator)) for operator, (_, operation) in zip(operators, operations.iterrows())]
+            yield simpy.events.AllOf(env, parallel_tasks)
 
-        current_station_index = int(current_station.split(' ')[1])
-        if current_station_index < 2:
-            next_station = f'STA {current_station_index + 1}'
-            if not stations[next_station].is_busy:
+            current_station_index = int(current_station.split(' ')[1])
+            if current_station_index < 2:
+                next_station = f'STA {current_station_index + 1}'
                 hull['Station'] = next_station
-                stations[next_station].is_busy = True
                 line_moves.append((env.now, hull['Vin'], current_station, next_station))
-                stations[current_station].is_busy = False
-        else:
-            hull['Station'] = 'COMPLETED'
-            hulls_processed.append(hull['Vin'])
-            stations[current_station].is_busy = False
+            else:
+                hull['Station'] = 'COMPLETED'
+                hulls_processed.append(hull['Vin'])
 
 def run_simulation(env, run_time, employee_count, start_date, daily_hull_rate):
     global floor_status
@@ -122,11 +122,10 @@ def run_simulation(env, run_time, employee_count, start_date, daily_hull_rate):
         for index, row in floor_status.iterrows():
             env.process(process_hull(env, row, stations, operators))
         
-        hulls_processed_today = 0
-        while hulls_processed_today < daily_hull_rate:
-            hulls_processed_today += 1
-            env.run(until=env.now + (shift_duration / daily_hull_rate))
-        
+        num_cycles = int(24 / (daily_hull_rate / 8))
+        for _ in range(num_cycles):
+            env.run(until=env.now + (8 / daily_hull_rate))
+
         for program, qty in available_hulls.items():
             if qty > 0:
                 if len(floor_status[(floor_status['Station'] == 'STA 0') & (floor_status['Program'] == program)]) < 1:
