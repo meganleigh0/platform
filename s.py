@@ -63,6 +63,19 @@ class Station:
         self.name = name
         self.capacity = simpy.Resource(env, capacity=1)  # Only one hull at a time
         self.operator_capacity = simpy.Resource(env, capacity=3)  # Up to 3 operators
+        self.downtime = False
+        self.downtime_start = 0
+        self.downtime_duration = 0
+
+    def set_downtime(self, start, duration):
+        self.downtime = True
+        self.downtime_start = start
+        self.downtime_duration = duration
+
+    def clear_downtime(self):
+        self.downtime = False
+        self.downtime_start = 0
+        self.downtime_duration = 0
 
 def calculate_attrition(day):
     rate_range = attrition_rates[day]
@@ -84,6 +97,11 @@ def process_hull(env, hull, stations, operators):
         if current_station == 'COMPLETED':
             break
         station = stations[current_station]
+
+        # Handle downtime
+        if station.downtime and station.downtime_start <= env.now < station.downtime_start + station.downtime_duration:
+            yield env.timeout(station.downtime_duration - (env.now - station.downtime_start))
+            station.clear_downtime()
 
         with station.capacity.request() as request:
             yield request
@@ -109,6 +127,10 @@ def run_simulation(env, run_time, employee_count, start_date, daily_hull_rate):
     stations = {f'STA {i}': Station(env, f'STA {i}') for i in range(17)}  # Adjust range as needed
     
     operators = [f'Operator {i}' for i in range(employee_count)]
+
+    # Set station downtimes
+    for station_id, (start, duration) in downtime.items():
+        stations[station_id].set_downtime(start, duration)
 
     for day in range(run_time):
         current_day = days[day % len(days)]
@@ -164,8 +186,3 @@ operation_df = pd.DataFrame(operation_log, columns=['Operation', 'Start Time', '
 line_moves_df = pd.DataFrame(line_moves, columns=['Time', 'Vehicle', 'From Station', 'To Station'])
 attrition_log_df = pd.DataFrame(attrition_log)
 operator_assignment_df = pd.DataFrame(operator_assignment_log, columns=['OperatorID', 'Station', 'Start Time', 'End Time'])
-
-import ace_tools as tools; tools.display_dataframe_to_user(name="Operation Log", dataframe=operation_df)
-tools.display_dataframe_to_user(name="Line Moves", dataframe=line_moves_df)
-tools.display_dataframe_to_user(name="Attrition Log", dataframe=attrition_log_df)
-tools.display_dataframe_to_user(name="Operator Assignment Log", dataframe=operator_assignment_df)
