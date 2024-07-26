@@ -16,22 +16,6 @@ daily_hull_rate = 1.25
 efficiency = 0.7  # Average efficiency
 block_duration = 2  # hours
 
-# Operation Data
-operation_data = pd.concat([
-    pd.DataFrame({
-        'Station': ['STA 0', 'STA 0', 'STA 1', 'STA 1', 'STA 2'],
-        'Operation': ['Build', 'Assemble', 'Tear', 'Dry', 'Paint'],
-        'Program': ['A', 'A', 'A', 'A', 'A'],
-        'Hours': [0.23, 0.3, 0.5, 1.0, 3.0]
-    }),
-    pd.DataFrame({
-        'Station': ['STA 0', 'STA 0', 'STA 1', 'STA 1', 'STA 2'],
-        'Operation': ['Build', 'Assemble', 'Tear', 'Dry', 'Paint'],
-        'Program': ['B', 'B', 'B', 'B', 'B'],
-        'Hours': [0.25, 0.35, 0.55, 1.1, 3.2]
-    })
-])
-
 # Available Hulls
 available_hulls = {
     'A': 5,
@@ -75,7 +59,7 @@ def operator_allocation(env, station, operation, hull, operator):
         actual_time = operation['Hours'] * random.uniform(0.5, 1.5) * efficiency
         yield env.timeout(actual_time)
         end_time = env.now
-        operation_log.append((operation['Operation'], start_time, end_time, operator, station.name, hull['Vin']))
+        operation_log.append((operation['Operation Title'], start_time, end_time, operator, station.name, hull['Vin']))
         operator_assignment_log.append((operator, station.name, start_time, end_time))
 
 def process_hull(env, hull, stations, operators):
