@@ -16,6 +16,22 @@ daily_hull_rate = 1.25
 efficiency = 0.7  # Average efficiency
 block_duration = 2  # hours
 
+# Operation Data
+operation_data = pd.DataFrame({
+    'Station': ['STA 0', 'STA 1', 'STA 2', 'STA 3', 'STA 4', 'STA 5', 'STA 6', 'STA 7', 'STA 8', 'STA 9', 
+                'STA 10', 'STA 11', 'STA 12', 'STA 13', 'STA 14', 'STA 15', 'STA 16', 'STA 0', 'STA 1', 'STA 2', 
+                'STA 3', 'STA 4', 'STA 5', 'STA 6', 'STA 7', 'STA 8', 'STA 9', 'STA 10', 'STA 11', 'STA 12', 
+                'STA 13', 'STA 14', 'STA 15', 'STA 16'],
+    'Operation': ['Build_0', 'Build_1', 'Build_2', 'Build_3', 'Build_4', 'Build_5', 'Build_6', 'Build_7', 
+                  'Build_8', 'Build_9', 'Build_10', 'Build_11', 'Build_12', 'Build_13', 'Build_14', 'Build_15', 
+                  'Build_16', 'Build_0', 'Build_1', 'Build_2', 'Build_3', 'Build_4', 'Build_5', 'Build_6', 
+                  'Build_7', 'Build_8', 'Build_9', 'Build_10', 'Build_11', 'Build_12', 'Build_13', 'Build_14', 
+                  'Build_15', 'Build_16'],
+    'Program': ['A']*17 + ['B']*17,
+    'Hours': [0.23, 0.3, 0.5, 1.0, 3.0, 0.25, 0.35, 0.55, 1.1, 3.2, 0.25, 0.35, 0.55, 1.1, 3.2, 0.23, 0.3, 
+              0.5, 1.0, 3.0, 0.25, 0.35, 0.55, 1.1, 3.2, 0.25, 0.35, 0.55, 1.1, 3.2, 0.23, 0.3, 0.5, 1.0, 3.0]
+})
+
 # Available Hulls
 available_hulls = {
     'A': 5,
@@ -24,9 +40,12 @@ available_hulls = {
 
 # Initial Floor Status
 floor_status = pd.DataFrame({
-    'Vin': ['Hull 1', 'Hull 2', 'Hull 3'],
-    'Station': ['STA 0', 'STA 1', 'STA 2'],
-    'Program': ['A', 'A', 'A']
+    'Vin': ['TESTHull1', 'TESTHull2', 'TESTHull3', 'TESTHull4', 'TESTHull5', 'TESTHull6', 'TESTHull7', 'TESTHull8',
+            'TESTHull9', 'TESTHull10', 'TESTHull11', 'TESTHull12', 'TESTHull13', 'TESTHull14', 'TESTHull15', 
+            'TESTHull16', 'TESTHull17'],
+    'Station': ['STA 0', 'STA 1', 'STA 2', 'STA 3', 'STA 4', 'STA 5', 'STA 6', 'STA 7', 'STA 8', 'STA 9', 'STA 10', 
+                'STA 11', 'STA 12', 'STA 13', 'STA 14', 'STA 15', 'STA 16'],
+    'Program': ['A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A']
 })
 
 # Downtime
@@ -59,7 +78,7 @@ def operator_allocation(env, station, operation, hull, operator):
         actual_time = operation['Hours'] * random.uniform(0.5, 1.5) * efficiency
         yield env.timeout(actual_time)
         end_time = env.now
-        operation_log.append((operation['Operation Title'], start_time, end_time, operator, station.name, hull['Vin']))
+        operation_log.append((operation['Operation'], start_time, end_time, operator, station.name, hull['Vin']))
         operator_assignment_log.append((operator, station.name, start_time, end_time))
 
 def process_hull(env, hull, stations, operators):
@@ -76,10 +95,11 @@ def process_hull(env, hull, stations, operators):
             yield simpy.events.AllOf(env, parallel_tasks)
 
             current_station_index = int(current_station.split(' ')[1])
-            if current_station_index < 2:
+            if current_station_index < 16:
                 next_station = f'STA {current_station_index + 1}'
-                hull['Station'] = next_station
-                line_moves.append((env.now, hull['Vin'], current_station, next_station))
+                if not stations[next_station].capacity.users:
+                    hull['Station'] = next_station
+                    line_moves.append((env.now, hull['Vin'], current_station, next_station))
             else:
                 hull['Station'] = 'COMPLETED'
                 hulls_processed.append(hull['Vin'])
@@ -89,7 +109,7 @@ def run_simulation(env, run_time, employee_count, start_date, daily_hull_rate):
     available_employees = [employee_count]
     days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
     
-    stations = {f'STA {i}': Station(env, f'STA {i}') for i in range(3)}  # Adjust range as needed
+    stations = {f'STA {i}': Station(env, f'STA {i}') for i in range(17)}  # Adjust range as needed
     
     operators = [f'Operator {i}' for i in range(employee_count)]
 
@@ -110,6 +130,15 @@ def run_simulation(env, run_time, employee_count, start_date, daily_hull_rate):
         for _ in range(num_cycles):
             env.run(until=env.now + (8 / daily_hull_rate))
 
+        for index, hull in floor_status.iterrows():
+            current_station = hull['Station']
+            if current_station != 'COMPLETED':
+                current_station_index = int(current_station.split(' ')[1])
+                next_station = f'STA {current_station_index + 1}'
+                if current_station_index < 16 and not stations[next_station].capacity.users:
+                    floor_status.at[index, 'Station'] = next_station
+                    line_moves.append((env.now, hull['Vin'], current_station, next_station))
+        
         for program, qty in available_hulls.items():
             if qty > 0:
                 if len(floor_status[(floor_status['Station'] == 'STA 0') & (floor_status['Program'] == program)]) < 1:
