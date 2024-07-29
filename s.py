@@ -1,56 +1,168 @@
 import simpy
+import pandas as pd
 import random
 
-class Operation:
-    def __init__(self, name, duration):
-        self.name = name
-        self.duration = duration
-
-class Station:
-    def __init__(self, env, name, operations):
+# Define the Hull class
+class Hull:
+    def __init__(self, env, hull_id, program):
         self.env = env
-        self.name = name
-        self.operations = operations
-        self.resource = simpy.Resource(env, capacity=3)  # Max 3 operators at a time
-        self.operation_queue = simpy.Store(env)
+        self.hull_id = hull_id
+        self.program = program
+        self.current_state = None
+        self.log = []
+        self.operation_data = None
 
-    def add_operation(self, operation):
-        self.operation_queue.put(operation)
+    def move_to_next_state(self, next_state):
+        if self.current_state:
+            self.log.append((self.hull_id, self.current_state, next_state, self.env.now))
+        self.current_state = next_state
 
+    def update_state(self, state):
+        self.state = state
+
+    def get_station_operations(self):
+        # Assume operation_data is a DataFrame with operation details
+        if self.operation_data is not None:
+            return self.operation_data[self.operation_data['Station'] == self.current_state]
+        return pd.DataFrame()
+
+# Define the Operator class
 class Operator:
-    def __init__(self, env, name):
+    def __init__(self, env, operator_id):
         self.env = env
-        self.name = name
+        self.operator_id = operator_id
+        self.current_assignment = None
+        self.log = []
 
     def perform_operation(self, station):
+        self.current_assignment = station
         while True:
-            with station.resource.request() as request:
+            # Process operations assigned to station queue
+            with station.operator_capacity.request() as request:
                 yield request
                 operation = yield station.operation_queue.get()
-                print(f'{self.name} starts {operation.name} at {station.name} at {self.env.now}')
-                yield self.env.timeout(operation.duration)
-                print(f'{self.name} completes {operation.name} at {station.name} at {self.env.now}')
-            yield self.env.timeout(2 * 60)  # Reassign operators every 2 hours
+                print(f"{self.operator_id} starts {operation['Operation Title']} at {station.station_id}, at {self.env.now}")
+                yield self.env.timeout(operation['Hours'])
+                print(f"{self.operator_id} ends {operation['Operation Title']} at {station.station_id}, at {self.env.now}")
+                self.log.append((self.operator_id, operation['Operation Title'], station.station_id, self.env.now))
+                # Release every 2 hours
+                yield self.env.timeout(2)
 
-def setup(env, num_operators, stations):
-    operators = [Operator(env, f'Operator-{i}') for i in range(num_operators)]
-    for operator in operators:
-        for station in stations:
-            env.process(operator.perform_operation(station))
+# Define the Station class
+class Station:
+    def __init__(self, env, station_id):
+        self.env = env
+        self.station_id = station_id
+        self.operators = []
+        self.operation_queue = simpy.Store(env)
+        self.operator_capacity = simpy.Resource(env, capacity=3)
+        self.stand = None
 
-# Initialize environment
+    def accept_hull(self, hull):
+        self.stand = hull
+        operations = hull.get_station_operations()
+        for _, operation in operations.iterrows():
+            self.operation_queue.put(operation)
+
+    def assign_operator(self, operator):
+        if len(self.operators) < 3:
+            self.operators.append(operator)
+            operator.current_assignment = self
+            return True
+        return False
+
+# Define the Line class
+class Line:
+    def __init__(self, env, floor_status):
+        self.env = env
+        self.floor_status = floor_status
+        self.stations = {station: Station(env, station) for station in floor_status['Station']}
+        self.initialize_hulls()
+
+        # Simulation parameters
+        self.head_count = 45
+        self.operators = [Operator(env, f'Operator-{i}') for i in range(self.head_count)]
+        self.rate = 1.25
+        self.shift_duration = 8
+        self.attrition_rates = {
+            'Monday': (0.05, 0.15),
+            'Tuesday': (0.05, 0.15),
+            'Wednesday': (0.05, 0.15),
+            'Thursday': (0.05, 0.15),
+            'Friday': (0.05, 0.15),
+            'Saturday': (0.00, 0.00),
+            'Sunday': (0.00, 0.00)
+        }
+        self.efficiency = 0.7
+
+    def initialize_hulls(self):
+        for _, row in self.floor_status.iterrows():
+            station = self.stations[row["Station"]]
+            hull = Hull(self.env, row["Vin"], row["Program"])
+            hull.current_state = row["Station"]
+            station.accept_hull(hull)
+
+    def assign_operators(self):
+        operator_index = 0
+        for station_name, station in self.stations.items():
+            # Check if there is a hull at the station
+            if isinstance(station.stand, Hull):
+                while len(station.operators) < 3 and operator_index < len(self.operators):
+                    operator = self.operators[operator_index]
+                    if station.assign_operator(operator):
+                        self.env.process(operator.perform_operation(station))
+                    operator_index += 1
+
+    def run_line(self):
+        for operator in self.operators:
+            self.env.process(operator.perform_operation(operator.current_assignment))
+
+    def transition(self, hull):
+        # Function to check status of all stations and move hulls
+        while True:
+            yield self.env.timeout(self.shift_duration / self.rate)
+            for station_name, station in self.stations.items():
+                if station.stand and isinstance(station.stand, Hull):
+                    # Move hull to next station
+                    next_station_name = self.get_next_station(station_name)
+                    if next_station_name:
+                        next_station = self.stations[next_station_name]
+                        if not next_station.stand:
+                            hull = station.stand
+                            station.stand = None
+                            next_station.accept_hull(hull)
+                            hull.move_to_next_state(next_station_name)
+            self.assign_operators()
+
+    def get_next_station(self, current_station):
+        # Placeholder for logic to determine the next station
+        current_station_index = int(current_station.split()[-1])
+        next_station_index = current_station_index + 1
+        next_station = f'STA {next_station_index}'
+        if next_station in self.stations:
+            return next_station
+        return None
+
+# Initialize the simulation environment
 env = simpy.Environment()
 
-# Create operations
-operations = [Operation(f'Operation-{i}', random.randint(10, 30)) for i in range(20)]
+# Define the initial floor status DataFrame
+floor_status = pd.DataFrame({
+    'Vin': ['TESTHull0', 'TESTHull1', 'TESTHull2', 'TESTHull3', 'TESTHull4', 'TESTHull5', 'TESTHull6', 'TESTHull7', 'TESTHull8'],
+    'Station': ['STA 0', 'STA 1', 'STA 2', 'STA 3', 'STA 4', 'STA 5', 'STA 6', 'STA 7', 'STA 8'],
+    'Program': ['SEPV3', 'SEPV3', 'SEPV3', 'SEPV3', 'SEPV3', 'SEPV3', 'SEPV3', 'SEPV3', 'SEPV3']
+})
 
-# Create stations and add operations to them
-stations = [Station(env, f'Station-{i}', operations) for i in range(3)]
-for station in stations:
-    for operation in operations:
-        station.add_operation(operation)
+# Create the line and start the simulation
+hull_assembly_line = Line(env, floor_status)
+env.process(hull_assembly_line.run_line())
+env.process(hull_assembly_line.transition(hull_assembly_line))
 
-# Setup and run the simulation
-setup(env, num_operators=9, stations=stations)
-env.run(until=1000)
+# Run the simulation
+env.run(until=10)
 
+# Output results
+print("Floor Status:", hull_assembly_line.floor_status)
+print("Operations Log:")
+for operator in hull_assembly_line.operators:
+    print(operator.log)
