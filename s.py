@@ -73,7 +73,7 @@ class Station:
         print(f"Hull {hull.hull_id} accepted at {self.station_id} with operations: {operations}")
 
     def assign_operator(self, operator):
-        if len(self.operators) < self.operator_capacity.capacity and len(self.operators) < len(self.operation_queue.items) and not self.is_down():
+        if len(self.operators) < self.operator_capacity.capacity and not self.is_down():
             self.operators.append(operator)
             operator.current_assignment = self
             return True
@@ -105,6 +105,7 @@ class Line:
         self.rate = 1.25
         self.shift_duration = 8
         self.completion_queue = []
+        self.completed_hulls = {}
 
         for station, (start_time, duration) in downtime.items():
             self.stations[station].add_downtime(start_time, duration)
@@ -130,7 +131,7 @@ class Line:
             station.operators = []  # Clear current operators
             if isinstance(station.stand, Hull) and not station.is_down():
                 num_operations = len(station.operation_queue.items)
-                while len(station.operators) < min(3, num_operations) and operator_index < len(self.operators):
+                while len(station.operators) < min(3, max(1, num_operations)) and operator_index < len(self.operators):
                     operator = self.operators[operator_index]
                     if station.assign_operator(operator):
                         self.env.process(operator.perform_operation(station))
@@ -166,22 +167,24 @@ class Line:
                     completed_hull = station.stand
                     station.stand = None
                     self.completion_queue.append(completed_hull)
+                    if completed_hull.program not in self.completed_hulls:
+                        self.completed_hulls[completed_hull.program] = 0
+                    self.completed_hulls[completed_hull.program] += 1
                     print(f"Hull {completed_hull.hull_id} completed at {station_name} at time {self.env.now}")
 
-            # Add available hull to the line if STA 0 is free
-            if not self.stations['STA 0'].stand and self.available_hulls:
-                new_hull_data = self.available_hulls.pop(0)
-                new_hull = Hull(self.env, new_hull_data['HullID'], new_hull_data['Program'], self.operation_data)
-                new_hull.current_state = 'STA 0'
-                self.stations['STA 0'].accept_hull(new_hull)
-                print(f"New hull {new_hull.hull_id} added to STA 0 at time {self.env.now}")
-
+        # Add available hull to the line if STA 0 is free
+        if not self.stations['STA 0'].stand and self.available_hulls:
+            new_hull_data = self.available_hulls.pop(0)
+            new_hull = Hull(self.env, new_hull_data['HullID'], new_hull_data['Program'], self.operation_data)
+            new_hull.current_state = 'STA 0'
+            self.stations['STA 0'].accept_hull(new_hull)
+            print(f"New hull {new_hull.hull_id} added to STA 0 at time {self.env.now}")
 
     def get_next_station(self, current_station):
         current_station_index = int(current_station.split()[-1])
         next_station_index = current_station_index + 1
         next_station = f'STA {next_station_index}'
-        if next_station in self.stations:
+        if next_station in self.stations and next_station_index <= 17:
             return next_station
         return None
 
@@ -193,9 +196,16 @@ class Line:
 
 # Generate sample operation data
 operation_data = pd.DataFrame({
-    'Station': ['STA 0', 'STA 0', 'STA 1', 'STA 1', 'STA 2', 'STA 2', 'STA 3', 'STA 3', 'STA 4', 'STA 4', 'STA 5', 'STA 5'],
-    'Operation Title': ['Op 0.1', 'Op 0.2', 'Op 1.1', 'Op 1.2', 'Op 2.1', 'Op 2.2', 'Op 3.1', 'Op 3.2', 'Op 4.1', 'Op 4.2', 'Op 5.1', 'Op 5.2'],
-    'Hours': [1.0, 2.0, 1.5, 2.5, 2.0, 1.0, 3.0, 2.5, 2.0, 1.5, 1.0, 2.5]
+    'Station': ['STA 0', 'STA 0', 'STA 1', 'STA 1', 'STA 2', 'STA 2', 'STA 3', 'STA 3', 'STA 4', 'STA 4', 'STA 5', 'STA 5', 
+                'STA 6', 'STA 6', 'STA 7', 'STA 7', 'STA 8', 'STA 8', 'STA 9', 'STA 9', 'STA 10', 'STA 10', 
+                'STA 11', 'STA 11', 'STA 12', 'STA 12', 'STA 13', 'STA 13', 'STA 14', 'STA 14', 'STA 15', 'STA 15', 
+                'STA 16', 'STA 16', 'STA 17', 'STA 17'],
+    'Operation Title': ['Op 0.1', 'Op 0.2', 'Op 1.1', 'Op 1.2', 'Op 2.1', 'Op 2.2', 'Op 3.1', 'Op 3.2', 'Op 4.1', 'Op 4.2', 
+                        'Op 5.1', 'Op 5.2', 'Op 6.1', 'Op 6.2', 'Op 7.1', 'Op 7.2', 'Op 8.1', 'Op 8.2', 'Op 9.1', 'Op 9.2', 
+                        'Op 10.1', 'Op 10.2', 'Op 11.1', 'Op 11.2', 'Op 12.1', 'Op 12.2', 'Op 13.1', 'Op 13.2', 'Op 14.1', 
+                        'Op 14.2', 'Op 15.1', 'Op 15.2', 'Op 16.1', 'Op 16.2', 'Op 17.1', 'Op 17.2'],
+    'Hours': [1.0, 2.0, 1.5, 2.5, 2.0, 1.0, 3.0, 2.5, 2.0, 1.5, 1.0, 2.5, 1.0, 2.0, 1.5, 2.5, 2.0, 1.0, 3.0, 2.5, 2.0, 
+              1.5, 1.0, 2.5, 1.0, 2.0, 1.5, 2.5, 2.0, 1.0, 3.0, 2.5, 2.0, 1.5, 1.0, 2.5]
 })
 
 # Define the initial floor status DataFrame
@@ -260,3 +270,7 @@ else:
 # Output the floor status log
 floor_log_df = pd.DataFrame(hull_assembly_line.floor_log, columns=['Time', 'Status'])
 print(floor_log_df)
+
+# Print the total completed hulls for each program
+for program, count in hull_assembly_line.completed_hulls.items():
+    print(f"Total completed hulls for {program}: {count}")
