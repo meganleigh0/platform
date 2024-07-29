@@ -1,6 +1,5 @@
 import simpy
 import pandas as pd
-import random
 import plotly.express as px
 
 # Define the Hull class
@@ -34,12 +33,19 @@ class Operator:
     def perform_operation(self, station):
         self.current_assignment = station
         while True:
-            with station.operator_capacity.request() as request:
-                yield request
-                operation = yield station.operation_queue.get()
-                yield self.env.timeout(operation['Hours'])
-                self.log.append((self.operator_id, operation['Operation Title'], station.station_id, self.env.now))
-                yield self.env.timeout(2)
+            try:
+                # Request to perform operation
+                with station.operator_capacity.request() as request:
+                    yield request
+                    operation = yield station.operation_queue.get()
+                    start_time = self.env.now
+                    yield self.env.timeout(operation['Hours'])
+                    end_time = self.env.now
+                    # Log the operation details
+                    self.log.append((self.operator_id, operation['Operation Title'], station.station_id, start_time, end_time))
+                    yield self.env.timeout(2)
+            except simpy.Interrupt:
+                break
 
 # Define the Station class
 class Station:
@@ -66,12 +72,15 @@ class Station:
 
 # Define the Line class
 class Line:
-    def __init__(self, env, floor_status, operation_data):
+    def __init__(self, env, floor_status, operation_data, available_hulls, downtime):
         self.env = env
         self.floor_status = floor_status
         self.operation_data = operation_data
+        self.available_hulls = available_hulls
+        self.downtime = downtime
         self.stations = {station: Station(env, station) for station in floor_status['Station']}
         self.initialize_hulls()
+        self.floor_log = []
 
         # Simulation parameters
         self.head_count = 45
@@ -114,7 +123,13 @@ class Line:
     def transition(self):
         while True:
             yield self.env.timeout(self.shift_duration / self.rate)
-            for station_name, station in self.stations.items():
+            # Handle downtime
+            for station_id, (start_time, duration) in self.downtime.items():
+                if start_time <= self.env.now < start_time + duration:
+                    continue
+            # Move hulls
+            for station_name in sorted(self.stations.keys(), reverse=True):
+                station = self.stations[station_name]
                 if station.stand and isinstance(station.stand, Hull):
                     next_station_name = self.get_next_station(station_name)
                     if next_station_name:
@@ -124,7 +139,13 @@ class Line:
                             station.stand = None
                             next_station.accept_hull(hull)
                             hull.move_to_next_state(next_station_name)
-            self.assign_operators()
+            # Add available hull to the line if STA 0 is free
+            if not self.stations['STA 0'].stand and self.available_hulls:
+                new_hull_data = self.available_hulls.pop(0)
+                new_hull = Hull(self.env, new_hull_data['HullID'], new_hull_data['Program'], self.operation_data)
+                new_hull.current_state = 'STA 0'
+                self.stations['STA 0'].accept_hull(new_hull)
+            self.log_floor_status()
 
     def get_next_station(self, current_station):
         current_station_index = int(current_station.split()[-1])
@@ -133,6 +154,11 @@ class Line:
         if next_station in self.stations:
             return next_station
         return None
+
+    def log_floor_status(self):
+        status = {station: (self.stations[station].stand.hull_id if self.stations[station].stand else None)
+                  for station in self.stations}
+        self.floor_log.append((self.env.now, status))
 
 # Generate sample operation data
 operation_data = pd.DataFrame({
@@ -148,11 +174,15 @@ floor_status = pd.DataFrame({
     'Program': ['SEPV3', 'SEPV3', 'SEPV3', 'SEPV3', 'SEPV3', 'SEPV3', 'SEPV3', 'SEPV3', 'SEPV3']
 })
 
+# Initialize available hulls and downtime
+available_hulls = [{'HullID': 'Hull1', 'Program': 'SEPV3'}, {'HullID': 'Hull2', 'Program': 'SEPV3'}]
+downtime = {'STA 0': (10, 2), 'STA 1': (20, 3)}
+
 # Initialize the simulation environment
 env = simpy.Environment()
 
 # Create the line and start the simulation
-hull_assembly_line = Line(env, floor_status, operation_data)
+hull_assembly_line = Line(env, floor_status, operation_data, available_hulls, downtime)
 env.process(hull_assembly_line.run_line())
 env.process(hull_assembly_line.transition())
 
@@ -167,12 +197,13 @@ for operator in hull_assembly_line.operators:
             'Operator': log_entry[0],
             'Operation': log_entry[1],
             'Station': log_entry[2],
-            'End Time': log_entry[3]
+            'Start Time': log_entry[3],
+            'End Time': log_entry[4]
         })
 
 operation_df = pd.DataFrame(operation_logs)
 
-# Calculate start times based on end times and durations
+# Ensure start times are correctly calculated
 operation_df = operation_df.merge(operation_data[['Operation Title', 'Hours']], left_on='Operation', right_on='Operation Title')
 operation_df['Start Time'] = operation_df['End Time'] - operation_df['Hours']
 
@@ -183,3 +214,7 @@ operation_df = operation_df.sort_values(by='Start Time')
 fig = px.timeline(operation_df, x_start='Start Time', x_end='End Time', y='Station', color='Operator', title='Hull Assembly Line Operations')
 fig.update_yaxes(categoryorder='category ascending')
 fig.show()
+
+# Output the floor status log
+floor_log_df = pd.DataFrame(hull_assembly_line.floor_log, columns=['Time', 'Status'])
+print(floor_log_df)
