@@ -26,22 +26,20 @@ class Hull:
 
 # Define the Operator class
 class Operator:
-    def __init__(self, env, operator_id, efficiency):
+    def __init__(self, env, operator_id, line):
         self.env = env
         self.operator_id = operator_id
-        self.efficiency = efficiency
+        self.line = line
         self.current_assignment = None
         self.log = []
 
-    def perform_operation(self, station):
-        self.current_assignment = station
+    def perform_operations(self):
         while True:
-            try:
-                with station.operator_capacity.request() as request:
-                    yield request
+            for station_name, station in self.line.stations.items():
+                if isinstance(station.stand, Hull) and not station.is_down() and station.operation_queue.items:
                     operation = yield station.operation_queue.get()
                     start_time = self.env.now
-                    time_taken = np.random.lognormal(mean=np.log(operation['Hours']), sigma=self.efficiency)
+                    time_taken = np.random.lognormal(mean=np.log(operation['Hours']), sigma=self.line.efficiency)
                     yield self.env.timeout(time_taken)
                     end_time = self.env.now
                     self.log.append({
@@ -53,17 +51,14 @@ class Operator:
                     })
                     print(f"Operator {self.operator_id} performed {operation['Operation Title']} on {station.station_id} from {start_time} to {end_time}")
                     yield self.env.timeout(2)
-            except simpy.Interrupt:
-                break
+            yield self.env.timeout(1)  # Wait a moment before checking for new tasks
 
 # Define the Station class
 class Station:
     def __init__(self, env, station_id):
         self.env = env
         self.station_id = station_id
-        self.operators = []
         self.operation_queue = simpy.Store(env)
-        self.operator_capacity = simpy.Resource(env, capacity=3)
         self.stand = None
         self.downtime = []
 
@@ -73,13 +68,6 @@ class Station:
         for _, operation in operations.iterrows():
             self.operation_queue.put(operation)
         print(f"Hull {hull.hull_id} accepted at {self.station_id} with operations: {operations}")
-
-    def assign_operator(self, operator):
-        if len(self.operators) < self.operator_capacity.capacity and not self.is_down():
-            self.operators.append(operator)
-            operator.current_assignment = self
-            return True
-        return False
 
     def is_down(self):
         for start_time, duration in self.downtime:
@@ -103,7 +91,7 @@ class Line:
         self.initialize_hulls()
         self.floor_log = []
         self.head_count = 45
-        self.operators = [Operator(env, f'Operator-{i}', efficiency) for i in range(self.head_count)]
+        self.operators = [Operator(env, f'Operator-{i}', self) for i in range(self.head_count)]
         self.rate = 1.25
         self.shift_duration = 8
         self.completion_queue = []
@@ -124,37 +112,23 @@ class Line:
         min_attrition, max_attrition = self.attrition_rates[day_of_week]
         attrition_rate = np.random.uniform(min_attrition, max_attrition)
         available_headcount = int(self.head_count * (1 - attrition_rate))
-        self.operators = [Operator(self.env, f'Operator-{i}', self.efficiency) for i in range(available_headcount)]
+        self.operators = [Operator(self.env, f'Operator-{i}', self) for i in range(available_headcount)]
         print(f"Resampled headcount: {available_headcount} operators available on {day_of_week}")
 
-    def assign_operators(self):
-        operator_index = 0
-        for station_name, station in self.stations.items():
-            station.operators = []  # Clear current operators
-            if isinstance(station.stand, Hull) and not station.is_down():
-                num_operations = len(station.operation_queue.items)
-                while len(station.operators) < max(1, min(3, num_operations)) and operator_index < len(self.operators):
-                    operator = self.operators[operator_index]
-                    if station.assign_operator(operator):
-                        self.env.process(operator.perform_operation(station))
-                        operator_index += 1
-                        print(f"Operator {operator.operator_id} assigned to {station_name}")
-
     def run_line(self):
+        for operator in self.operators:
+            self.env.process(operator.perform_operations())
         while True:
             self.resample_headcount()
-            self.assign_operators()
             self.log_floor_status()
-            yield self.env.timeout(2)  # Assign operators every 2 hours
             self.attempt_transition()
+            yield self.env.timeout(2)  # Check for transitions every 2 hours
             yield self.env.timeout(self.shift_duration / self.rate - 2)
 
     def attempt_transition(self):
         for station_name in sorted(self.stations.keys(), reverse=True):
             station = self.stations[station_name]
-            if station.stand and isinstance(station.stand, Hull) and not station.is_down():
-                if station.operation_queue.items:
-                    continue  # Hull can't move if there are pending operations
+            if station.stand and isinstance(station.stand, Hull) and not station.is_down() and not station.operation_queue.items:
                 next_station_name = self.get_next_station(station_name)
                 if next_station_name:
                     next_station = self.stations[next_station_name]
@@ -165,7 +139,6 @@ class Line:
                         next_station.accept_hull(hull)
                         print(f"Hull {hull.hull_id} moved from {station_name} to {next_station_name} at time {self.env.now}")
                 else:
-                    # Place hull in completion queue if it's the final station
                     completed_hull = station.stand
                     station.stand = None
                     self.completion_queue.append(completed_hull)
@@ -231,7 +204,7 @@ attrition_rates = {
     'Saturday': (0.00, 0.00),
     'Sunday': (0.00, 0.00)
 }
-efficiency = 0.7
+efficiency = 0.3
 
 # Initialize the simulation environment
 env = simpy.Environment()
