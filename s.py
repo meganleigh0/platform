@@ -26,9 +26,10 @@ class Hull:
 
 # Define the Operator class
 class Operator:
-    def __init__(self, env, operator_id):
+    def __init__(self, env, operator_id, efficiency):
         self.env = env
         self.operator_id = operator_id
+        self.efficiency = efficiency
         self.current_assignment = None
         self.log = []
 
@@ -40,7 +41,8 @@ class Operator:
                     yield request
                     operation = yield station.operation_queue.get()
                     start_time = self.env.now
-                    yield self.env.timeout(operation['Hours'])
+                    time_taken = np.random.lognormal(mean=np.log(operation['Hours']), sigma=self.efficiency)
+                    yield self.env.timeout(time_taken)
                     end_time = self.env.now
                     self.log.append({
                         'Operator': self.operator_id,
@@ -101,7 +103,7 @@ class Line:
         self.initialize_hulls()
         self.floor_log = []
         self.head_count = 45
-        self.operators = [Operator(env, f'Operator-{i}') for i in range(self.head_count)]
+        self.operators = [Operator(env, f'Operator-{i}', efficiency) for i in range(self.head_count)]
         self.rate = 1.25
         self.shift_duration = 8
         self.completion_queue = []
@@ -121,8 +123,8 @@ class Line:
         day_of_week = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][int(self.env.now // self.shift_duration) % 7]
         min_attrition, max_attrition = self.attrition_rates[day_of_week]
         attrition_rate = np.random.uniform(min_attrition, max_attrition)
-        available_headcount = int(self.head_count * (1 - attrition_rate) * self.efficiency)
-        self.operators = [Operator(self.env, f'Operator-{i}') for i in range(available_headcount)]
+        available_headcount = int(self.head_count * (1 - attrition_rate))
+        self.operators = [Operator(self.env, f'Operator-{i}', self.efficiency) for i in range(available_headcount)]
         print(f"Resampled headcount: {available_headcount} operators available on {day_of_week}")
 
     def assign_operators(self):
@@ -131,7 +133,7 @@ class Line:
             station.operators = []  # Clear current operators
             if isinstance(station.stand, Hull) and not station.is_down():
                 num_operations = len(station.operation_queue.items)
-                while len(station.operators) < min(3, max(1, num_operations)) and operator_index < len(self.operators):
+                while len(station.operators) < max(1, min(3, num_operations)) and operator_index < len(self.operators):
                     operator = self.operators[operator_index]
                     if station.assign_operator(operator):
                         self.env.process(operator.perform_operation(station))
