@@ -104,6 +104,7 @@ class Line:
         self.operators = [Operator(env, f'Operator-{i}') for i in range(self.head_count)]
         self.rate = 1.25
         self.shift_duration = 8
+        self.completion_queue = []
 
         for station, (start_time, duration) in downtime.items():
             self.stations[station].add_downtime(start_time, duration)
@@ -160,6 +161,13 @@ class Line:
                         hull.move_to_next_state(next_station_name)
                         next_station.accept_hull(hull)
                         print(f"Hull {hull.hull_id} moved from {station_name} to {next_station_name} at time {self.env.now}")
+                else:
+                    # Place hull in completion queue if it's the final station
+                    completed_hull = station.stand
+                    station.stand = None
+                    self.completion_queue.append(completed_hull)
+                    print(f"Hull {completed_hull.hull_id} completed at {station_name} at time {self.env.now}")
+
             # Add available hull to the line if STA 0 is free
             if not self.stations['STA 0'].stand and self.available_hulls:
                 new_hull_data = self.available_hulls.pop(0)
@@ -167,6 +175,7 @@ class Line:
                 new_hull.current_state = 'STA 0'
                 self.stations['STA 0'].accept_hull(new_hull)
                 print(f"New hull {new_hull.hull_id} added to STA 0 at time {self.env.now}")
+
 
     def get_next_station(self, current_station):
         current_station_index = int(current_station.split()[-1])
