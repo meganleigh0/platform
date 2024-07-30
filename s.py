@@ -1,71 +1,49 @@
-import simpy
 import pandas as pd
-import plotly.express as px
-import numpy as np
+import simpy
 
-# Define the Hull class
-class Hull:
-    def __init__(self, env, hull_id, program, operation_data):
-        self.env = env
-        self.hull_id = hull_id
-        self.program = program
-        self.current_state = None
-        self.log = []
-        self.operation_data = operation_data
+# Initialize the DataFrame
+operation_df = pd.DataFrame(columns=["OperatorID", "Operation", "Station", "HullID", "Start", "End"])
 
-    def move_to_next_state(self, next_state):
-        if self.current_state:
-            self.log.append((self.hull_id, self.current_state, next_state, self.env.now))
-            print(f"Hull {self.hull_id} moved from {self.current_state} to {next_state} at time {self.env.now}")
-        self.current_state = next_state
-
-    def get_station_operations(self):
-        if self.operation_data is not None:
-            return self.operation_data[self.operation_data['Station'] == self.current_state]
-        return pd.DataFrame()
-
-# Define the Operator class
 class Operator:
-    def __init__(self, env, operator_id, line):
+    def __init__(self, env, operator_id):
         self.env = env
         self.operator_id = operator_id
-        self.line = line
         self.current_assignment = None
-        self.log = []
 
-    def perform_operations(self):
+    def perform_operation(self, station):
+        self.current_assignment = station
         while True:
-            for station_name, station in self.line.stations.items():
-                if isinstance(station.stand, Hull) and not station.is_down() and station.operation_queue.items:
+            try:
+                with station.operator_capacity.request() as request:
+                    yield request
                     operation = yield station.operation_queue.get()
                     start_time = self.env.now
-                    time_taken = np.random.lognormal(mean=np.log(operation['Hours']), sigma=self.line.efficiency)
-                    yield self.env.timeout(time_taken)
+                    yield self.env.timeout(operation['Hours'])
                     end_time = self.env.now
-                    self.log.append({
-                        'Operator': self.operator_id,
-                        'Operation': operation['Operation Title'],
-                        'Station': station.station_id,
-                        'Start Time': start_time,
-                        'End Time': end_time
-                    })
-                    print(f"Operator {self.operator_id} performed {operation['Operation Title']} on {station.station_id} from {start_time} to {end_time}")
-                    yield self.env.timeout(2)
-            yield self.env.timeout(1)  # Wait a moment before checking for new tasks
 
-# Define the Station class
+                    print(f"Operator {self.operator_id} performed operation {operation['Title']} from {station.station_id} from {start_time} to {end_time}")
+
+                    # Append operation details to the DataFrame
+                    hull = station.stand
+                    operation_df.loc[len(operation_df)] = [self.operator_id, operation['Title'], station.station_id, hull.hull_id, start_time, end_time]
+
+            except simpy.Interrupt:
+                break
+
 class Station:
     def __init__(self, env, station_id):
         self.env = env
         self.station_id = station_id
         self.operation_queue = simpy.Store(env)
-        self.stand = None
+        self.operator_capacity = simpy.Resource(env, capacity=3)
         self.downtime = []
+        self.stand = None
+        self.operators = []
 
     def accept_hull(self, hull):
         self.stand = hull
         operations = hull.get_station_operations()
-        for _, operation in operations.iterrows():
+        for operation in operations:
             self.operation_queue.put(operation)
         print(f"Hull {hull.hull_id} accepted at {self.station_id} with operations: {operations}")
 
@@ -78,7 +56,29 @@ class Station:
     def add_downtime(self, start_time, duration):
         self.downtime.append((start_time, duration))
 
-# Define the Line class
+    def assign_operator(self, operator):
+        if len(self.operators) < 3:
+            self.operators.append(operator)
+            return True
+        return False
+
+class Hull:
+    def __init__(self, env, hull_id, program, operation_data):
+        self.env = env
+        self.hull_id = hull_id
+        self.program = program
+        self.current_state = None
+        self.operation_data = operation_data
+
+    def move_to_next_state(self, next_state):
+        self.current_state = next_state
+
+    def get_station_operations(self):
+        if self.operation_data is not None:
+            program_data = self.operation_data[self.operation_data["Program"] == self.program].copy()
+            return program_data[program_data["Station"] == self.current_state].to_dict('records')
+        return []
+
 class Line:
     def __init__(self, env, floor_status, operation_data, available_hulls, downtime, attrition_rates, efficiency):
         self.env = env
@@ -88,47 +88,60 @@ class Line:
         self.attrition_rates = attrition_rates
         self.efficiency = efficiency
         self.stations = {station: Station(env, station) for station in floor_status['Station']}
-        self.initialize_hulls()
-        self.floor_log = []
         self.head_count = 45
-        self.operators = [Operator(env, f'Operator-{i}', self) for i in range(self.head_count)]
+        self.operators = [Operator(env, f"Operator_{i}") for i in range(self.head_count)]
         self.rate = 1.25
-        self.shift_duration = 8
-        self.completion_queue = []
-        self.completed_hulls = {}
-
-        for station, (start_time, duration) in downtime.items():
-            self.stations[station].add_downtime(start_time, duration)
-
-    def initialize_hulls(self):
-        for _, row in self.floor_status.iterrows():
-            station = self.stations[row["Station"]]
-            hull = Hull(self.env, row["Vin"], row["Program"], self.operation_data)
-            hull.current_state = row["Station"]
-            station.accept_hull(hull)
+        self.shift_duration = 8 * 60  # 8 hours in minutes
+        self.start_processes()
 
     def resample_headcount(self):
-        day_of_week = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][int(self.env.now // self.shift_duration) % 7]
-        min_attrition, max_attrition = self.attrition_rates[day_of_week]
-        attrition_rate = np.random.uniform(min_attrition, max_attrition)
-        available_headcount = int(self.head_count * (1 - attrition_rate))
-        self.operators = [Operator(self.env, f'Operator-{i}', self) for i in range(available_headcount)]
-        print(f"Resampled headcount: {available_headcount} operators available on {day_of_week}")
+        day_of_week = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'][int(self.env.now // self.shift_duration) % 5]
+        attrition_rate = self.attrition_rates[day_of_week]
+        max_attrition = max(attrition_rate)
+        new_headcount = int(self.head_count * (1 - max_attrition))
+        self.operators = [Operator(self.env, f"Operator_{i}") for i in range(new_headcount)]
+        print(f"Resampled headcount: {new_headcount} operators available on {day_of_week}")
 
-    def run_line(self):
-        for operator in self.operators:
-            self.env.process(operator.perform_operations())
+    def start_processes(self):
+        self.env.process(self.reassign_operators())
+        self.env.process(self.attempt_transitions())
+        self.env.process(self.resample_headcount_process())
+
+    def reassign_operators(self):
         while True:
+            self.assign_operators()
+            self.log_floor_status()
+            yield self.env.timeout(2 * 60)  # 2 hours
+
+    def attempt_transitions(self):
+        while True:
+            yield self.env.timeout(8 * 60 / self.rate)  # 6.4 hours
+            self.attempt_transition()
+            self.log_floor_status()
+
+    def resample_headcount_process(self):
+        while True:
+            yield self.env.timeout(8 * 60)  # 8 hours
             self.resample_headcount()
             self.log_floor_status()
-            self.attempt_transition()
-            yield self.env.timeout(2)  # Check for transitions every 2 hours
-            yield self.env.timeout(self.shift_duration / self.rate - 2)
+
+    def assign_operators(self):
+        operator_index = 0
+        for station_name, station in self.stations.items():
+            station.operators = []  # Clear current operators
+            if isinstance(station.stand, Hull) and not station.is_down():
+                num_operations = len(station.operation_queue.items)
+                while len(station.operators) < min(3, num_operations) and operator_index < len(self.operators):
+                    operator = self.operators[operator_index]
+                    if station.assign_operator(operator):
+                        self.env.process(operator.perform_operation(station))
+                        operator_index += 1
+                        print(f"Operator {operator.operator_id} assigned to {station_name}")
 
     def attempt_transition(self):
         for station_name in sorted(self.stations.keys(), reverse=True):
             station = self.stations[station_name]
-            if station.stand and isinstance(station.stand, Hull) and not station.is_down() and not station.operation_queue.items:
+            if isinstance(station.stand, Hull) and not station.is_down() and not station.operation_queue.items:
                 next_station_name = self.get_next_station(station_name)
                 if next_station_name:
                     next_station = self.stations[next_station_name]
@@ -137,115 +150,60 @@ class Line:
                         station.stand = None
                         hull.move_to_next_state(next_station_name)
                         next_station.accept_hull(hull)
-                        print(f"Hull {hull.hull_id} moved from {station_name} to {next_station_name} at time {self.env.now}")
-                else:
-                    completed_hull = station.stand
-                    station.stand = None
-                    self.completion_queue.append(completed_hull)
-                    if completed_hull.program not in self.completed_hulls:
-                        self.completed_hulls[completed_hull.program] = 0
-                    self.completed_hulls[completed_hull.program] += 1
-                    print(f"Hull {completed_hull.hull_id} completed at {station_name} at time {self.env.now}")
-
-        # Add available hull to the line if STA 0 is free
-        if not self.stations['STA 0'].stand and self.available_hulls:
-            new_hull_data = self.available_hulls.pop(0)
-            new_hull = Hull(self.env, new_hull_data['HullID'], new_hull_data['Program'], self.operation_data)
-            new_hull.current_state = 'STA 0'
-            self.stations['STA 0'].accept_hull(new_hull)
-            print(f"New hull {new_hull.hull_id} added to STA 0 at time {self.env.now}")
+                    else:
+                        completed_hull = station.stand
+                        station.stand = None
+                        self.available_hulls.append(completed_hull)
+                        print(f"Completed hull {completed_hull.hull_id} at {station_name} at time {self.env.now}")
 
     def get_next_station(self, current_station):
-        current_station_index = int(current_station.split()[-1])
-        next_station_index = current_station_index + 1
-        next_station = f'STA {next_station_index}'
-        if next_station in self.stations and next_station_index <= 17:
+        current_index = int(current_station.split()[-1])
+        next_index = current_index + 1
+        next_station = f'STA {next_index}'
+        if next_station in self.stations:
             return next_station
         return None
 
     def log_floor_status(self):
-        status = {station: (self.stations[station].stand.hull_id if self.stations[station].stand else None)
-                  for station in self.stations}
-        self.floor_log.append((self.env.now, status))
-        print(f"Floor status at time {self.env.now}: {status}")
+        for station_name, station in self.stations.items():
+            if station.stand:
+                status = station.stand.hull_id
+            else:
+                status = None
+            print(f"Floor status at time {self.env.now}: {station_name} has hull {status}")
 
-# Generate sample operation data
-operation_data = pd.DataFrame({
-    'Station': ['STA 0', 'STA 0', 'STA 1', 'STA 1', 'STA 2', 'STA 2', 'STA 3', 'STA 3', 'STA 4', 'STA 4', 'STA 5', 'STA 5', 
-                'STA 6', 'STA 6', 'STA 7', 'STA 7', 'STA 8', 'STA 8', 'STA 9', 'STA 9', 'STA 10', 'STA 10', 
-                'STA 11', 'STA 11', 'STA 12', 'STA 12', 'STA 13', 'STA 13', 'STA 14', 'STA 14', 'STA 15', 'STA 15', 
-                'STA 16', 'STA 16', 'STA 17', 'STA 17'],
-    'Operation Title': ['Op 0.1', 'Op 0.2', 'Op 1.1', 'Op 1.2', 'Op 2.1', 'Op 2.2', 'Op 3.1', 'Op 3.2', 'Op 4.1', 'Op 4.2', 
-                        'Op 5.1', 'Op 5.2', 'Op 6.1', 'Op 6.2', 'Op 7.1', 'Op 7.2', 'Op 8.1', 'Op 8.2', 'Op 9.1', 'Op 9.2', 
-                        'Op 10.1', 'Op 10.2', 'Op 11.1', 'Op 11.2', 'Op 12.1', 'Op 12.2', 'Op 13.1', 'Op 13.2', 'Op 14.1', 
-                        'Op 14.2', 'Op 15.1', 'Op 15.2', 'Op 16.1', 'Op 16.2', 'Op 17.1', 'Op 17.2'],
-    'Hours': [1.0, 2.0, 1.5, 2.5, 2.0, 1.0, 3.0, 2.5, 2.0, 1.5, 1.0, 2.5, 1.0, 2.0, 1.5, 2.5, 2.0, 1.0, 3.0, 2.5, 2.0, 
-              1.5, 1.0, 2.5, 1.0, 2.0, 1.5, 2.5, 2.0, 1.0, 3.0, 2.5, 2.0, 1.5, 1.0, 2.5]
-})
-
-# Define the initial floor status DataFrame
-floor_status = pd.DataFrame({
-    'Vin': ['TESTHull0', 'TESTHull1', 'TESTHull2', 'TESTHull3', 'TESTHull4', 'TESTHull5', 'TESTHull6', 'TESTHull7', 'TESTHull8'],
-    'Station': ['STA 0', 'STA 1', 'STA 2', 'STA 3', 'STA 4', 'STA 5', 'STA 6', 'STA 7', 'STA 8'],
-    'Program': ['SEPV3', 'SEPV3', 'SEPV3', 'SEPV3', 'SEPV3', 'SEPV3', 'SEPV3', 'SEPV3', 'SEPV3']
-})
-
-# Initialize available hulls and downtime
-available_hulls = [{'HullID': 'Hull1', 'Program': 'SEPV3'}, {'HullID': 'Hull2', 'Program': 'SEPV3'}]
-downtime = {'STA 0': (10, 2), 'STA 1': (20, 3)}
-
-# Attrition rates and efficiency
-attrition_rates = {
-    'Monday': (0.05, 0.15),
-    'Tuesday': (0.05, 0.15),
-    'Wednesday': (0.05, 0.15),
-    'Thursday': (0.05, 0.15),
-    'Friday': (0.05, 0.15),
-    'Saturday': (0.00, 0.00),
-    'Sunday': (0.00, 0.00)
-}
-efficiency = 0.3
-
-# Initialize the simulation environment
+# Sample usage
 env = simpy.Environment()
 
-# Create the line and start the simulation
-hull_assembly_line = Line(env, floor_status, operation_data, available_hulls, downtime, attrition_rates, efficiency)
-env.process(hull_assembly_line.run_line())
+# Initialize floor_status, operation_data, available_hulls, downtime, attrition_rates, and efficiency
+# These should be provided according to your dataset and requirements
+floor_status = {
+    'Station': ['STA 0', 'STA 1', 'STA 2', 'STA 3', 'STA 4']
+}
+operation_data = pd.DataFrame([
+    {'Program': 'A', 'Station': 'STA 0', 'Operation': 'Op1', 'Hours': 2},
+    {'Program': 'A', 'Station': 'STA 1', 'Operation': 'Op2', 'Hours': 3},
+    {'Program': 'A', 'Station': 'STA 2', 'Operation': 'Op3', 'Hours': 4},
+    {'Program': 'A', 'Station': 'STA 3', 'Operation': 'Op4', 'Hours': 5},
+    {'Program': 'A', 'Station': 'STA 4', 'Operation': 'Op5', 'Hours': 6}
+])
+available_hulls = [Hull(env, f'Hull_{i}', 'A', operation_data) for i in range(5)]
+downtime = {}
+attrition_rates = {
+    'Monday': [0.0, 0.1],
+    'Tuesday': [0.0, 0.1],
+    'Wednesday': [0.0, 0.1],
+    'Thursday': [0.0, 0.1],
+    'Friday': [0.0, 0.1]
+}
+efficiency = 1.0
 
-# Run the simulation for a week (5 days, 8 hours each day)
-env.run(until=5 * 8)
+line = Line(env, floor_status, operation_data, available_hulls, downtime, attrition_rates, efficiency)
 
-# Gather logs
-operation_logs = []
-for operator in hull_assembly_line.operators:
-    for log_entry in operator.log:
-        operation_logs.append(log_entry)
+# Add an initial hull to the first station for testing
+env.process(line.stations['STA 0'].accept_hull(available_hulls.pop(0)))
 
-# Convert operation logs to DataFrame
-operation_df = pd.DataFrame(operation_logs)
+# Run the simulation for a specific period (e.g., 48 hours)
+env.run(until=48 * 60)
 
-# Check if the DataFrame is empty
-if not operation_df.empty:
-    # Ensure start times are correctly calculated
-    operation_df = operation_df.rename(columns={'Operation': 'Operation Title'})
-    operation_df = operation_df.merge(operation_data[['Operation Title', 'Hours']], on='Operation Title')
-    operation_df['Start Time'] = operation_df['End Time'] - operation_df['Hours']
-
-    # Sort the operations by start time
-    operation_df = operation_df.sort_values(by='Start Time')
-
-    # Generate a Gantt chart using Plotly
-    fig = px.timeline(operation_df, x_start='Start Time', x_end='End Time', y='Station', color='Operator', title='Hull Assembly Line Operations')
-    fig.update_yaxes(categoryorder='category ascending')
-    fig.show()
-else:
-    print("No operation logs found.")
-
-# Output the floor status log
-floor_log_df = pd.DataFrame(hull_assembly_line.floor_log, columns=['Time', 'Status'])
-print(floor_log_df)
-
-# Print the total completed hulls for each program
-for program, count in hull_assembly_line.completed_hulls.items():
-    print(f"Total completed hulls for {program}: {count}")
+print(operation_df)
