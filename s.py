@@ -1,7 +1,6 @@
 import pandas as pd
 import plotly.express as px
-import numpy as np
-from datetime import timedelta
+from pandas.tseries.offsets import BDay
 import holidays
 
 # Assume operation_df is your DataFrame
@@ -15,15 +14,15 @@ df['End'] = df['End'].astype(float)
 df['Start'] = pd.to_timedelta(df['Start'], unit='h')
 df['End'] = pd.to_timedelta(df['End'], unit='h')
 
-# Define a function to adjust for working days
+# Create a business day offset with US holidays
 us_holidays = holidays.US()
+custom_bday = BDay(holidays=us_holidays)
 
 def adjust_for_working_days(start_date, timedelta_hours):
-    total_days = int(timedelta_hours // 24)
-    remaining_hours = timedelta_hours % 24
-    start_date_np = np.datetime64(start_date)
-    adjusted_date_np = np.busday_offset(start_date_np, total_days, holidays=us_holidays)
-    adjusted_date = pd.Timestamp(adjusted_date_np) + timedelta(hours=remaining_hours)
+    total_days = timedelta(hours=timedelta_hours).days
+    remaining_hours = timedelta(hours=timedelta_hours).seconds // 3600
+    adjusted_date = start_date + total_days * custom_bday
+    adjusted_date += pd.Timedelta(hours=remaining_hours)
     return adjusted_date
 
 # Apply the adjustment to the 'Start' and 'End' columns
