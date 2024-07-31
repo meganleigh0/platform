@@ -21,6 +21,7 @@ us_holidays = holidays.US()
 def adjust_for_working_days(start_date, timedelta_hours):
     total_days = timedelta_hours // 24
     remaining_hours = timedelta_hours % 24
+    start_date = np.datetime64(start_date)
     adjusted_date = np.busday_offset(start_date, total_days, holidays=us_holidays)
     adjusted_date = pd.Timestamp(adjusted_date) + timedelta(hours=remaining_hours)
     return adjusted_date
