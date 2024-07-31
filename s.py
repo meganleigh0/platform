@@ -14,8 +14,8 @@ df['End'] = df['End'].astype(float)
 us_holidays = holidays.US()
 
 def adjust_for_working_days(start_date, timedelta_hours):
-    remaining_hours = timedelta(hours=timedelta_hours).total_seconds() / 3600
     current_date = start_date
+    remaining_hours = timedelta_hours
 
     while remaining_hours > 0:
         # Check if the current date is a working day
@@ -45,10 +45,11 @@ def adjust_for_working_days(start_date, timedelta_hours):
 
 # Apply the adjustment to the 'Start' and 'End' columns
 reference_date = datetime(2024, 8, 1, 9)  # Assuming work starts at 9 AM on the reference date
-df['Start'] = df['Start'].apply(lambda x: adjust_for_working_days(reference_date, x.total_seconds() / 3600))
-df['End'] = df['End'].apply(lambda x: adjust_for_working_days(reference_date, x.total_seconds() / 3600))
+df['Start'] = df['Start'].apply(lambda x: adjust_for_working_days(reference_date, x))
+df['End'] = df['End'].apply(lambda x: adjust_for_working_days(reference_date, x))
 
 # Create Gantt chart using Plotly Express
 fig = px.timeline(df, x_start="Start", x_end="End", y="Station", color="Hull", title="Operation Timeline")
 
-# Show the​⬤
+# Show the plot
+fig.show()
