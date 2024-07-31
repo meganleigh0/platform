@@ -19,11 +19,11 @@ df['End'] = pd.to_timedelta(df['End'], unit='h')
 us_holidays = holidays.US()
 
 def adjust_for_working_days(start_date, timedelta_hours):
-    total_days = timedelta_hours // 24
+    total_days = int(timedelta_hours // 24)
     remaining_hours = timedelta_hours % 24
-    start_date = np.datetime64(start_date)
-    adjusted_date = np.busday_offset(start_date, total_days, holidays=us_holidays)
-    adjusted_date = pd.Timestamp(adjusted_date) + timedelta(hours=remaining_hours)
+    start_date_np = np.datetime64(start_date)
+    adjusted_date_np = np.busday_offset(start_date_np, total_days, holidays=us_holidays)
+    adjusted_date = pd.Timestamp(adjusted_date_np) + timedelta(hours=remaining_hours)
     return adjusted_date
 
 # Apply the adjustment to the 'Start' and 'End' columns
