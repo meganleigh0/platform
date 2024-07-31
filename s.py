@@ -1,7 +1,7 @@
 import pandas as pd
 import plotly.express as px
 import numpy as np
-from datetime import datetime, timedelta
+from datetime import timedelta
 import holidays
 
 # Assume operation_df is your DataFrame
@@ -19,9 +19,11 @@ df['End'] = pd.to_timedelta(df['End'], unit='h')
 us_holidays = holidays.US()
 
 def adjust_for_working_days(start_date, timedelta_hours):
-    start_date = np.datetime64(start_date)
-    adjusted_date = np.busday_offset(start_date, timedelta_hours, unit='h', holidays=us_holidays, roll='forward')
-    return pd.Timestamp(adjusted_date)
+    total_days = timedelta_hours // 24
+    remaining_hours = timedelta_hours % 24
+    adjusted_date = np.busday_offset(start_date, total_days, holidays=us_holidays)
+    adjusted_date = pd.Timestamp(adjusted_date) + timedelta(hours=remaining_hours)
+    return adjusted_date
 
 # Apply the adjustment to the 'Start' and 'End' columns
 reference_date = pd.Timestamp('2024-08-01')
