@@ -50,4 +50,10 @@ def adjust_for_working_days(start_date, timedelta_hours):
 # Apply the adjustment to the 'Start' and 'End' columns
 reference_date = datetime(2024, 8, 1, 9)  # Assuming work starts at 9 AM
 df['Start'] = df['Start'].apply(lambda x: adjust_for_working_days(reference_date, x.total_seconds() / 3600))
-df['End'] = df['End'].apply(lambda x​⬤
+df['End'] = df['End'].apply(lambda x: adjust_for_working_days(reference_date, x.total_seconds() / 3600))
+
+# Create Gantt chart using Plotly Express
+fig = px.timeline(df, x_start="Start", x_end="End", y="Station", color="Hull", title="Operation Timeline")
+
+# Show the plot
+fig.show()
