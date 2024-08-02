@@ -1,18 +1,32 @@
-import pandas as pd
-import plotly.express as px
+# Parse sheet from workbook
+df = sep_operations.parse(sep_operations.sheet_names[0], skiprows=0).fillna(0)
 
-# Assume operation_df is your DataFrame
-df = operation_df.copy()
+# Convert columns to string and replace commas and spaces
+df["Common"] = df["Common"].astype(str)
+print("Before replacement (Common):")
+print(df["Common"].head())
+df["Common"] = df["Common"].str.replace(' ', '').str.replace(',', '.').str.replace('(', '').str.replace(')', '')
+print("After replacement (Common):")
+print(df["Common"].head())
 
-# Convert the time columns to float if they are not already
-df['Start'] = df['Start'].astype(float)
-df['End'] = df['End'].astype(float)
+# Convert to float
+df["Common"] = df["Common"].astype(float)
+print("After conversion to float (Common):")
+print(df["Common"].head())
 
-# Create Gantt chart using Plotly Express with hours as continuous values
-fig = px.timeline(df, x_start="Start", x_end="End", y="Station", color="Hull", title="Operation Timeline")
+df["SEPV3"] = df["SEPV3"].astype(str)
+print("Before replacement (SEPV3):")
+print(df["SEPV3"].head())
+df["SEPV3"] = df["SEPV3"].str.replace(' ', '').str.replace(',', '.').str.replace('(', '').str.replace(')', '')
+print("After replacement (SEPV3):")
+print(df["SEPV3"].head())
 
-# Customize the x-axis to reflect hours
-fig.update_layout(xaxis_title='Hours')
+df["SEPV3"] = df["SEPV3"].astype(float)
+print("After conversion to float (SEPV3):")
+print(df["SEPV3"].head())
 
-# Show the plot
-fig.show()
+df["Hours"] = (df["Common"] + df["SEPV3"])/60
+df = df[["Hours"]].copy()
+
+print(f"{sep_operations.sheet_names[0]}, Length: {len(df)}")
+print(df.head())
