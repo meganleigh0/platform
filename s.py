@@ -1,3 +1,5 @@
+import pandas as pd
+
 # Parse sheet from workbook
 df = sep_operations.parse(sep_operations.sheet_names[0], skiprows=0).fillna(0)
 
@@ -5,7 +7,7 @@ df = sep_operations.parse(sep_operations.sheet_names[0], skiprows=0).fillna(0)
 df["Common"] = df["Common"].astype(str)
 print("Before replacement (Common):")
 print(df["Common"].head())
-df["Common"] = df["Common"].str.replace(' ', '').str.replace(',', '.').str.replace('(', '').str.replace(')', '')
+df["Common"] = df["Common"].str.replace(' ', '').str.replace(',', '.').str.replace('(', '').str.replace(')', '').str.replace('-.-', '0')
 print("After replacement (Common):")
 print(df["Common"].head())
 
@@ -22,7 +24,7 @@ print(df["Common"].head())
 df["SEPV3"] = df["SEPV3"].astype(str)
 print("Before replacement (SEPV3):")
 print(df["SEPV3"].head())
-df["SEPV3"] = df["SEPV3"].str.replace(' ', '').str.replace(',', '.').str.replace('(', '').str.replace(')', '')
+df["SEPV3"] = df["SEPV3"].str.replace(' ', '').str.replace(',', '.').str.replace('(', '').str.replace(')', '').str.replace('-.-', '0')
 print("After replacement (SEPV3):")
 print(df["SEPV3"].head())
 
