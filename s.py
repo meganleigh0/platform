@@ -3,37 +3,22 @@ import pandas as pd
 # Parse sheet from workbook
 df = sep_operations.parse(sep_operations.sheet_names[0], skiprows=0).fillna(0)
 
-# Convert columns to string and replace unwanted characters
-df["Common"] = df["Common"].astype(str)
-print("Before replacement (Common):")
-print(df["Common"].head())
-df["Common"] = df["Common"].str.replace(' ', '').str.replace(',', '.').str.replace('(', '').str.replace(')', '').str.replace('-.-', '0')
-print("After replacement (Common):")
-print(df["Common"].head())
+# Function to clean and convert column to float
+def clean_and_convert(column):
+    # Convert to string
+    column = column.astype(str)
+    # Replace unwanted characters
+    column = column.str.replace(' ', '').str.replace(',', '.').str.replace('(', '').str.replace(')', '').str.replace('-.-', '0')
+    # Remove any remaining non-numeric characters
+    column = column.str.replace('[^0-9.]', '', regex=True)
+    return column.astype(float)
 
-# Check for non-numeric characters
-non_numeric = df["Common"].str.contains('[^0-9.]')
-print("Non-numeric characters in Common:")
-print(df[non_numeric])
-
-# Convert to float
-df["Common"] = df["Common"].astype(float)
+# Apply the function to the columns
+df["Common"] = clean_and_convert(df["Common"])
 print("After conversion to float (Common):")
 print(df["Common"].head())
 
-df["SEPV3"] = df["SEPV3"].astype(str)
-print("Before replacement (SEPV3):")
-print(df["SEPV3"].head())
-df["SEPV3"] = df["SEPV3"].str.replace(' ', '').str.replace(',', '.').str.replace('(', '').str.replace(')', '').str.replace('-.-', '0')
-print("After replacement (SEPV3):")
-print(df["SEPV3"].head())
-
-# Check for non-numeric characters
-non_numeric = df["SEPV3"].str.contains('[^0-9.]')
-print("Non-numeric characters in SEPV3:")
-print(df[non_numeric])
-
-df["SEPV3"] = df["SEPV3"].astype(float)
+df["SEPV3"] = clean_and_convert(df["SEPV3"])
 print("After conversion to float (SEPV3):")
 print(df["SEPV3"].head())
 
