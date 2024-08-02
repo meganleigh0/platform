@@ -11,16 +11,26 @@ def clean_and_convert(column):
     column = column.str.replace(' ', '').str.replace(',', '.').str.replace('(', '').str.replace(')', '').str.replace('-.-', '0')
     # Remove any remaining non-numeric characters
     column = column.str.replace('[^0-9.]', '', regex=True)
+    print("Column after cleaning:")
+    print(column.head())
     return column.astype(float)
 
 # Apply the function to the columns
-df["Common"] = clean_and_convert(df["Common"])
-print("After conversion to float (Common):")
-print(df["Common"].head())
+try:
+    df["Common"] = clean_and_convert(df["Common"])
+    print("After conversion to float (Common):")
+    print(df["Common"].head())
+except ValueError as e:
+    print(f"Error converting 'Common': {e}")
+    print(df["Common"].unique())
 
-df["SEPV3"] = clean_and_convert(df["SEPV3"])
-print("After conversion to float (SEPV3):")
-print(df["SEPV3"].head())
+try:
+    df["SEPV3"] = clean_and_convert(df["SEPV3"])
+    print("After conversion to float (SEPV3):")
+    print(df["SEPV3"].head())
+except ValueError as e:
+    print(f"Error converting 'SEPV3': {e}")
+    print(df["SEPV3"].unique())
 
 df["Hours"] = (df["Common"] + df["SEPV3"])/60
 df = df[["Hours"]].copy()
