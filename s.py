@@ -1,4 +1,33 @@
 import simpy
+import numpy as np
+import pandas as pd
+
+class Operator:
+    def __init__(self, env, operator_id):
+        self.env = env
+        self.operator_id = operator_id
+        self.current_assignment = None
+
+    def perform_operation(self, station):
+        while True:
+            if len(station.operation_queue.items) == 0:
+                print(f"{self.operator_id} has no more operations to perform at {station.station_id}")
+                break
+
+            current_time = self.env.now
+            operation = yield station.operation_queue.get()
+            remaining_shift_time = 8 - (current_time % 8)
+
+            if operation.hours <= remaining_shift_time:
+                print(f"{self.operator_id} at {station.station_id} is performing operation taking {operation.hours} time units.")
+                yield self.env.timeout(operation.hours)
+            else:
+                # If not enough time in the shift, put the operation back and break to end the current shift
+                print(f"{self.operator_id} at {station.station_id} cannot start operation taking {operation.hours} time units due to insufficient time in the shift.")
+                yield station.operation_queue.put(operation)
+                break
+
+            print(f"{self.operator_id} completed operation at {station.station_id}")
 
 class Line:
     def __init__(self, env, floor_status, operation_data, available_hulls, downtime, attrition_rates, efficiency):
@@ -58,7 +87,7 @@ class Line:
         # Sort stations by the size of the operation queue and total processing time in descending order
         sorted_stations = sorted(
             eligible_stations,
-            key=lambda s: (len(s.operation_queue.items), sum(op.time for op in s.operation_queue.items)),
+            key=lambda s: (len(s.operation_queue.items), sum(op.hours for op in s.operation_queue.items)),
             reverse=True
         )
 
@@ -133,4 +162,4 @@ class Operation:
 # Simulation Parameters
 available_hulls = [
     {'HullID': 'Hull1A', 'Program': 'SEPVP3'},
-    {'HullID': 'Hull2A', 'Program': 'SEP​⬤
+    {'HullID': 'Hull2A', '​⬤
