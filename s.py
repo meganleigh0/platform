@@ -1,16 +1,3 @@
-   def start_operators(self):
-        # Start the operators' tasks in parallel
-        for operator, station in self.assigned_operators:
-            self.env.process(self.perform_operation(operator, station))
-
-    def perform_operation(self, operator, station):
-        # Operator performs operations from the station's queue
-        while True:
-            if len(station.operation_queue.items) == 0:
-                break
-            operation = yield station.operation_queue.get()
-            print(f"{operator} at {station.name} is performing operation taking {operation.time} time units at time {self.env.now}.")
-            yield self.env.timeout(operation.time)
 import simpy
 
 class Line:
@@ -20,7 +7,6 @@ class Line:
         self.total_operators = total_operators
         self.operators = [f"Operator_{i}" for i in range(1, total_operators + 1)]
         self.assigned_operators = []
-        self.shift_end_event = simpy.Event(env)  # Event to signal the end of the shift
 
     def assign_operators(self):
         while True:
@@ -30,12 +16,6 @@ class Line:
             self.start_operators()
             # Wait for 8 hours (shift duration)
             yield self.env.timeout(8)
-            # Signal the end of the shift
-            self.shift_end_event.succeed()
-            # Wait a short time to ensure all operators stop
-            yield self.env.timeout(1)
-            # Reset the shift end event for the next shift
-            self.shift_end_event = simpy.Event(self.env)
             # Release operators at the end of the shift
             self.release_operators()
 
@@ -74,11 +54,19 @@ class Line:
 
     def perform_operation(self, operator, station):
         while True:
-            if len(station.operation_queue.items) == 0 or self.shift_end_event.triggered:
+            if len(station.operation_queue.items) == 0:
                 break
+            current_time = self.env.now
             operation = yield station.operation_queue.get()
-            print(f"{operator} at {station.name} is performing operation taking {operation.time} time units.")
-            yield self.env.timeout(operation.time)
+            remaining_shift_time = 8 - (current_time % 8)
+            if operation.time <= remaining_shift_time:
+                print(f"{operator} at {station.name} is performing operation taking {operation.time} time units.")
+                yield self.env.timeout(operation.time)
+            else:
+                # If not enough time in the shift, put the operation back and break to end the current shift
+                print(f"{operator} at {station.name} cannot start operation taking {operation.time} time units due to insufficient time in the shift.")
+                station.operation_queue.put(operation)
+                break
 
     def release_operators(self):
         # Release all assigned operators
