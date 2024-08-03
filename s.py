@@ -1,23 +1,55 @@
 import simpy
 
 class Line:
-    def __init__(self, env, total_operators):
+    def __init__(self, env, floor_status, operation_data, available_hulls, downtime, attrition_rates, efficiency):
         self.env = env
-        self.stations = {}  # Dictionary of station_name: station
-        self.total_operators = total_operators
-        self.operators = [f"Operator_{i}" for i in range(1, total_operators + 1)]
+        self.floor_status = floor_status
+        self.operation_data = operation_data
+        self.available_hulls = available_hulls
+        self.attrition_rates = attrition_rates
+        self.efficiency = efficiency
+        self.stations = {station: Station(env, station) for station in floor_status['Station']}
+        self.head_count = 45
+        self.rate = 1.25
+        self.shift_duration = 8
+        self.operators = [Operator(env, f"Operator_{i}") for i in range(self.head_count)]
+        self.log = []
         self.assigned_operators = []
 
-    def assign_operators(self):
+        # Initialization
+        self.initialize_hulls()
+        for station, (start_time, duration) in downtime.items():
+            self.stations[station].add_downtime(start_time, duration)
+
+    def initialize_hulls(self):
+        for _, row in self.floor_status.iterrows():
+            station = self.stations[row['Station']]
+            hull = Hull(self.env, row['Vin'], row['Program'], self.operation_data)
+            hull.current_state = row['Station']
+            station.accept_hull(hull)
+
+    def run_line(self):
         while True:
-            # Assign operators at the beginning of the shift
+            # Start of shift
+            self.resample_headcount()
             self.assign_shift_operators()
-            # Start all assigned operators in parallel
-            self.start_operators()
-            # Wait for 8 hours (shift duration)
-            yield self.env.timeout(8)
-            # Release operators at the end of the shift
+            self.work_operators()
+            yield self.env.timeout(self.shift_duration)
+            # End of shift
+            self.log_floor_status()
             self.release_operators()
+
+    def work_operators(self):
+        for operator, station in self.assigned_operators:
+            self.env.process(operator.perform_operation(station))
+
+    def resample_headcount(self):
+        day_of_week = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'][int(self.env.now // self.shift_duration) % 5]
+        min_attrition, max_attrition = self.attrition_rates[day_of_week]
+        attrition_rate = np.random.uniform(min_attrition, max_attrition)
+        available_headcount = int(self.head_count * (1 - attrition_rate))
+        self.operators = [Operator(self.env, f"Operator_{i}") for i in range(available_headcount)]
+        print(f"Resampled headcount: {available_headcount} operators available on {day_of_week}")
 
     def assign_shift_operators(self):
         # Filter out stations without a Hull in the stand or with no operations
@@ -30,95 +62,75 @@ class Line:
             reverse=True
         )
 
-        # Step 1: Ensure every station with a Hull has at least one operator
+        # Ensure every station with a Hull has at least one operator
         for station in sorted_stations:
             if len(station.operators) == 0 and self.operators:
                 operator = self.operators.pop(0)
                 station.operators.append(operator)
                 self.assigned_operators.append((operator, station))
-                print(f"Assigned operator {operator} to station {station.name}")
+                print(f"Assigned operator {operator} to station {station.station_id}")
 
-        # Step 2: Distribute remaining operators up to the capacity of each station based on priority
+        # Distribute remaining operators up to the capacity of each station based on priority
         while self.operators:
             for station in sorted_stations:
                 if self.operators and len(station.operators) < station.operator_capacity.capacity:
                     operator = self.operators.pop(0)
                     station.operators.append(operator)
                     self.assigned_operators.append((operator, station))
-                    print(f"Assigned operator {operator} to station {station.name}")
-
-    def start_operators(self):
-        # Start the operators' tasks in parallel
-        for operator, station in self.assigned_operators:
-            self.env.process(self.perform_operation(operator, station))
-
-    def perform_operation(self, operator, station):
-        while True:
-            if len(station.operation_queue.items) == 0:
-                break
-            current_time = self.env.now
-            operation = yield station.operation_queue.get()
-            remaining_shift_time = 8 - (current_time % 8)
-            if operation.time <= remaining_shift_time:
-                print(f"{operator} at {station.name} is performing operation taking {operation.time} time units.")
-                yield self.env.timeout(operation.time)
-            else:
-                # If not enough time in the shift, put the operation back and break to end the current shift
-                print(f"{operator} at {station.name} cannot start operation taking {operation.time} time units due to insufficient time in the shift.")
-                station.operation_queue.put(operation)
-                break
+                    print(f"Assigned operator {operator} to station {station.station_id}")
 
     def release_operators(self):
-        # Release all assigned operators
         for operator, station in self.assigned_operators:
             station.operators.remove(operator)
             self.operators.append(operator)
-            print(f"Released operator {operator} from station {station.name}")
+            print(f"Released operator {operator} from station {station.station_id}")
         self.assigned_operators.clear()
 
+    def log_floor_status(self):
+        status = {station: (self.stations[station].stand.hull_id if self.stations[station].stand else None) for station in self.stations}
+        self.log.append((self.env.now, status))
+        print(f"Floor status at time {self.env.now}: {status}")
+
 class Station:
-    def __init__(self, env, name):
+    def __init__(self, env, station_id):
         self.env = env
-        self.name = name
-        self.operators = []
-        self.stand = None  # Initially, no Hull in the stand
+        self.station_id = station_id
+        self.operation_queue = simpy.Store(env)
         self.operator_capacity = simpy.Resource(env, capacity=3)
-        self.operation_queue = simpy.Store(env)  # Use SimPy Store for operation queue
+        self.stand = None
+        self.operators = []
+        self.current_operations = []
+
+    def accept_hull(self, hull):
+        self.stand = hull
+        operations = hull.get_station_operations()
+        for _, row in operations.iterrows():
+            operation = Operation(self.env, row['Operation Title'], row['Hours'])
+            self.operation_queue.put(operation)
+
+    def add_downtime(self, start_time, duration):
+        self.downtime.append((start_time, duration))
 
 class Hull:
-    def __init__(self, id):
-        self.id = id
+    def __init__(self, env, hull_id, program, operation_data):
+        self.env = env
+        self.hull_id = hull_id
+        self.program = program
+        self.operation_data = operation_data
+        self.current_state = None
+
+    def get_station_operations(self):
+        if self.operation_data is not None:
+            program_data = self.operation_data[self.operation_data['Program'] == self.program].copy()
+            return program_data[program_data['Station'] == self.current_state]
 
 class Operation:
-    def __init__(self, time):
-        self.time = time
+    def __init__(self, env, title, hours):
+        self.env = env
+        self.title = title
+        self.hours = hours
 
-# Example usage
-env = simpy.Environment()
-line = Line(env, total_operators=10)  # Assume we have a total of 10 operators
-
-# Create some stations and add them to the line
-station1 = Station(env, "Station1")
-station2 = Station(env, "Station2")
-station3 = Station(env, "Station3")
-
-# Add operations to the queues
-station1.operation_queue.items.extend([Operation(5), Operation(3)])
-station2.operation_queue.items.extend([Operation(7)])
-station3.operation_queue.items.extend([Operation(6), Operation(4), Operation(2)])
-
-line.stations["Station1"] = station1
-line.stations["Station2"] = station2
-line.stations["Station3"] = station3
-
-# Put a Hull in the stand of station1 and station2
-station1.stand = Hull(1)
-station2.stand = Hull(2)
-
-# Run the assign_operators process
-env.process(line.assign_operators())
-env.run(until=24)  # Run the simulation for 24 hours
-
-# Output the operator assignments after simulation
-for station_name, station in line.stations.items():
-    print(f"{station_name} operators: {station.operators}")
+# Simulation Parameters
+available_hulls = [
+    {'HullID': 'Hull1A', 'Program': 'SEPVP3'},
+    {'HullID': 'Hull2A', 'Program': 'SEP​⬤
