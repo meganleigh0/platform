@@ -1,69 +1,52 @@
 import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
 
+# Example DataFrame (Replace this with your actual data)
 data = {
-    'Feature': [
-        'Purpose',
-        'Primary Use Cases',
-        'Data Processing Engine',
-        'Data Transformation Capabilities',
-        'Support for Python and Advanced Libraries',
-        'Machine Learning Support',
-        'Collaboration Features',
-        'Integration with Other Azure Services',
-        'Scalability',
-        'Complex Data Processing (e.g., NLP, Simulations)',
-        'User Interface',
-        'Cost Structure',
-        'Maturity and Industry Adoption'
-    ],
-    'Azure Data Factory (ADF)': [
-        'Data integration and orchestration service',
-        'ETL/ELT pipelines, data movement, and basic data transformation',
-        'Orchestrates external compute (e.g., Azure HDInsight, Azure Databricks)',
-        'Mapping Data Flows for visual data transformation; limited complex transformations',
-        'Limited; custom activities can run Python scripts via Azure Batch or Azure Functions',
-        'Not designed for machine learning workloads',
-        'Limited collaboration; focuses on pipeline management',
-        'Integrates with various Azure data stores and compute services',
-        'Scales for data movement and orchestration needs',
-        'Not suitable for complex data processing or simulations',
-        'Visual interface for designing and managing pipelines',
-        'Pay-as-you-go based on pipeline activities and data movement',
-        'Mature service widely used for ETL and data integration tasks'
-    ],
-    'Azure Synapse Analytics': [
-        'Integrated analytics platform combining data warehousing and big data analytics',
-        'Data warehousing, big data analytics, integrated SQL and Spark processing',
-        'Built-in SQL pools (dedicated and serverless), Spark pools',
-        'Advanced transformations using T-SQL, Spark SQL, and notebooks',
-        'Supports Python in Spark pools; may have limitations with library support',
-        'Basic ML support via Spark MLlib; integration with Azure Machine Learning',
-        'Basic collaboration through shared workspaces and notebooks',
-        'Deep integration with Azure Data Lake Storage, Azure SQL Database, Power BI, and others',
-        'Scales for large-scale analytics and data warehousing workloads',
-        'Can perform complex processing but may have limitations in library support',
-        'Integrated workspace with SQL editor, Spark notebooks, and pipelines',
-        'Costs associated with compute resources (SQL pools, Spark pools) and storage',
-        'Emerging platform with growing adoption; combines mature services (SQL DW) with new features'
-    ],
-    'Azure Databricks': [
-        'Collaborative platform for big data analytics, data science, and machine learning',
-        'Advanced analytics, data engineering, data science, machine learning, complex data processing',
-        'Optimized Apache Spark engine',
-        'Complex transformations using Python, Scala, R, SQL within notebooks',
-        'Full support for Python and extensive libraries (Pandas, NumPy, SimPy, NLP libraries)',
-        'Extensive ML support; integrates with MLflow, supports deep learning frameworks',
-        'Advanced collaboration with interactive notebooks, real-time co-authoring, version control integration',
-        'Integrates seamlessly with Azure Data Lake Storage, Azure SQL Database, Power BI, and more',
-        'Highly scalable for big data processing and machine learning workloads',
-        'Ideal for complex data processing, simulations, NLP tasks with full library support',
-        'Collaborative notebooks supporting Python, Scala, SQL, R with rich visualization',
-        'Costs based on compute usage (Databricks Units) and cluster uptime; can optimize with auto-scaling',
-        'Mature platform with widespread industry use for data science, analytics, and machine learning'
-    ]
+    'WCAssigned': ['400A', '400B', '4001', '4002', '4003', '400A', '4002'],
+    'WorkCenter': ['400A', '400B', '4003', '4002', '4001', '4002', '400B']
 }
-
 df = pd.DataFrame(data)
 
-# Display the DataFrame
-print(df)
+# Step 1: Create a mapping of the WorkCenters to numerical values
+unique_workcenters = sorted(set(df['WCAssigned'].unique()).union(df['WorkCenter'].unique()))
+workcenter_map = {center: i for i, center in enumerate(unique_workcenters)}
+
+# Step 2: Encode the WCAssigned and WorkCenter columns to numerical values
+df['WCAssigned_Num'] = df['WCAssigned'].map(workcenter_map)
+df['WorkCenter_Num'] = df['WorkCenter'].map(workcenter_map)
+
+# Step 3: Calculate the absolute difference between the two columns
+df['Difference'] = np.abs(df['WCAssigned_Num'] - df['WorkCenter_Num'])
+
+# Step 4: Visualize the differences
+
+# 4.1 Scatter Plot of WCAssigned vs WorkCenter
+plt.figure(figsize=(10,6))
+plt.scatter(df['WCAssigned_Num'], df['WorkCenter_Num'], c=df['Difference'], cmap='viridis', s=100)
+plt.colorbar(label='Difference Magnitude')
+plt.title('WCAssigned vs WorkCenter')
+plt.xlabel('WCAssigned (Encoded)')
+plt.ylabel('WorkCenter (Encoded)')
+plt.show()
+
+# 4.2 Bar Chart Showing the Differences
+plt.figure(figsize=(10,6))
+plt.bar(df.index, df['Difference'], color='blue')
+plt.title('Difference between WCAssigned and WorkCenter')
+plt.xlabel('Index')
+plt.ylabel('Difference (Encoded Values)')
+plt.show()
+
+# Step 5: Print the DataFrame with the calculated differences
+print(df[['WCAssigned', 'WorkCenter', 'WCAssigned_Num', 'WorkCenter_Num', 'Difference']])
+
+
+	1.	Numerical Encoding: Since the values like 400A, 400B, etc., are categorical but ordered, we first encode them into numerical values based on their position in the sorted list of unique work center values. This helps us quantify their differences.
+	2.	Difference Calculation: Once the WCAssigned and WorkCenter values are converted to numbers, we calculate the absolute difference between these numerical representations for each row. A smaller difference indicates that the two columns are closely aligned for that entry, while a larger difference indicates a bigger deviation.
+	3.	Visualizations:
+	•	Scatter Plot: This plot shows WCAssigned vs WorkCenter, where the color intensity represents the magnitude of the difference between the two columns. It’s useful for identifying patterns in differences visually.
+	•	Bar Chart: The bar chart shows the magnitude of differences for each row. This helps quantify and easily compare the differences across the entire dataset.
+
+This analysis helps you understand how “different” the WCAssigned and WorkCenter values are by assigning numerical values based on their order and visually presenting the magnitude of the differences.
