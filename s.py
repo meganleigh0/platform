@@ -1,68 +1,20 @@
-import pandas as pd
-import plotly.express as px
+Here’s a more polished version for your email:
 
-# Step 1: Group by Workcenter and calculate avg, max, and min deviations ONLY for operations that moved (Difference != 0)
-moved_operations = df[df['Difference'] != 0]
+Subject: Update on Simulation and Data Visualization
 
-# Calculate average deviation for moved operations
-avg_deviation_moved = moved_operations.groupby('Workcenter')['Difference'].mean().reset_index(name='avg_deviation_moved')
+Hi Brent,
 
-# Calculate max deviation for moved operations
-max_deviation_moved = moved_operations.groupby('Workcenter')['Difference'].max().reset_index(name='max_deviation_moved')
+I hope you’re doing well.
 
-# Calculate min deviation for moved operations
-min_deviation_moved = moved_operations.groupby('Workcenter')['Difference'].min().reset_index(name='min_deviation_moved')
+Solumna is running smoothly, and I appreciate you checking in. Currently, we are executing the simulation locally using the Senpai library, which produces a CSV log of the results. Afterward, we use that log, along with others generated from the simulation, to create various visualizations.
 
-# Step 2: Calculate the number of operations with no change (Difference == 0)
-no_change_count = df[df['Difference'] == 0].groupby('Workcenter').size().reset_index(name='num_no_change')
+The animations are developed in Python using the Plotly library, and we save them as HTML files for easy viewing. I’ve attached those HTML files for you to review. These represent the results from our Model 2, which incorporates the MBOM and Labor Standards.
 
-# Step 3: Calculate the number of operations that did change (Difference != 0)
-changed_count = df[df['Difference'] != 0].groupby('Workcenter').size().reset_index(name='num_changed')
+Since our recent visit to JSMC, we’ve received a lot of valuable input. We’re now working on addressing some of the discrepancies in the data we initially used and aligning it more closely with their processes, as we’ve discovered some significant differences in execution. Our current focus is on cleansing, mapping, and organizing the data properly so we can accurately model it moving forward.
 
-# Step 4: Merge all calculated data into a single DataFrame
-summary_df = avg_deviation_moved.merge(max_deviation_moved, on='Workcenter', how='outer')
-summary_df = summary_df.merge(min_deviation_moved, on='Workcenter', how='outer')
-summary_df = summary_df.merge(no_change_count, on='Workcenter', how='left')
-summary_df = summary_df.merge(changed_count, on='Workcenter', how='left')
+Please let me know if you have any questions or need further details.
 
-# Fill NaN values in num_no_change and num_changed with 0
-summary_df['num_no_change'] = summary_df['num_no_change'].fillna(0)
-summary_df['num_changed'] = summary_df['num_changed'].fillna(0)
+Best regards,
+[Your Name]
 
-# Step 5: Sort the work centers in a specific order (e.g., 400A, 400B, 401, etc.)
-workcenter_order = ['400A', '400B', '401', '402', '403', '404', '405', '406', '407', '408', '409', '4010', 
-                    '4011', '4012', '4013', '4014', '4015', '4016', '4017']
-
-summary_df['Workcenter'] = pd.Categorical(summary_df['Workcenter'], categories=workcenter_order, ordered=True)
-summary_df = summary_df.sort_values('Workcenter')
-
-# Step 6: Create a grouped bar chart showing average deviation, number of no-change operations, and number of changed operations per work center
-fig_grouped_bar = px.bar(
-    summary_df, 
-    x='Workcenter', 
-    y=['avg_deviation_moved', 'num_no_change', 'num_changed'],  # Show metrics for deviation and operations
-    title="Impact of Deviations by Workcenter (Only Moved Operations Included in Avg. Deviation)",
-    labels={'avg_deviation_moved': 'Average Deviation (Moved Operations)', 'num_no_change': 'No Change (Count)', 'num_changed': 'Changed Operations (Count)'},
-    barmode='group',  # Group bars for better comparison
-    height=600,
-    width=1000
-)
-
-# Step 7: Add annotations to the bars for better readability
-for bar in fig_grouped_bar.data:
-    bar.text = bar.y
-    bar.textposition = 'outside'
-
-# Step 8: Set a consistent y-axis range for all bars to keep the same scale
-fig_grouped_bar.update_layout(
-    xaxis_title="Planned Workcenter",
-    yaxis_title="Deviation / Operation Count",
-    showlegend=True,
-    legend_title_text="Metrics",
-    uniformtext_minsize=8, 
-    uniformtext_mode='hide',
-    yaxis=dict(range=[0, max(summary_df[['avg_deviation_moved', 'num_no_change', 'num_changed']].max().max()) * 1.1])  # Scale the y-axis
-)
-
-# Display the figure
-fig_grouped_bar.show()
+Let me know if you’d like any further adjustments!
