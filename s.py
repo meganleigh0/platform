@@ -1,26 +1,20 @@
-Coding for Zero and Non-Zero Differences
-bar_fig = px.bar(
-    df,
-    x=df.index,
-    y='Difference',
-    color='Is_Aligned',  # Color based on whether the difference is zero or not
-    text='Difference',
-    hover_data=['WCAssigned', 'WorkCenter'],
-    title='Difference between WCAssigned and WorkCenter with Zero Difference Highlighted'
+whether the difference is zero or not
+df['Movement'] = np.where(df['Difference'] > 0, 'Movement', 'No Movement')
+
+# Step 5: Group by WCAssigned and count how many movements and no movements per work center
+movement_summary = df.groupby(['WCAssigned', 'Movement']).size().unstack(fill_value=0)
+
+# Step 6: Visualize the number of movements per work center
+movement_fig = movement_summary.plot(
+    kind='bar',
+    stacked=True,
+    figsize=(10, 6),
+    title="Number of Movements and No Movements per Work Center",
+    ylabel="Number of Operations"
 )
 
-# Customize labels and layout
-bar_fig.update_layout(
-    xaxis_title='Index',
-    yaxis_title='Difference (Encoded Values)',
-    coloraxis_colorbar=dict(
-        title="Alignment"
-    ),
-    showlegend=True
-)
+# Step 7: Show the plot
+plt.show()
 
-# Show plot
-bar_fig.show()
-
-# Step 6: Print the DataFrame with the calculated differences
-print(df[['WCAssigned', 'WorkCenter', 'WCAssigned_Num', 'WorkCenter_Num', 'Difference', 'Is_Aligned']])
+# Step 8: Print the movement summary for reference
+print(movement_summary)
