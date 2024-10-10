@@ -1,11 +1,3 @@
-### Analysis of Work Center Deviations in Operations
-
-This analysis focuses on identifying the differences between the planned and assigned work centers for each operation. Each operation is planned to occur in a specific work center according to the material resource planning (MRP) system. However, due to various factors, many operations are reassigned to different work centers. 
-
-The difference between the planned work center (`WorkCenter`) and the assigned work center (`WCAssigned`) is represented as an encoded deviation. Larger deviations indicate significant movement of work content, which disrupts planning, leads to inefficiencies, and complicates the organization of parts and materials. This analysis aims to quantify and visualize these deviations to highlight which work centers experience the most disruption and which remain unaffected. 
-
-Understanding these deviations helps in addressing the challenges of material tracking and reducing inefficiencies caused by reassignments.
-
 import plotly.express as px
 import pandas as pd
 
@@ -15,7 +7,7 @@ summary_df = df.groupby('WorkCenter').agg(
     max_deviation=('Difference', 'max'),
     min_deviation=('Difference', 'min'),
     total_ops=('Difference', 'size'),
-    num_no_change=('Difference', lambda x: (x == 0).sum())  # Count operations with no change
+    num_no_change=('Difference', lambda x: sum(x == 0))  # Count operations with no change
 ).reset_index()
 
 # Create a grouped bar chart showing average deviation and number of no-change operations per work center
