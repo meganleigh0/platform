@@ -1,13 +1,9 @@
-# Step 1: Merge on 'Operation' from df and 'OperNo' from final_df, as well as 'OpSheet'
-merged_df = pd.merge(df, final_df, left_on=['Operation', 'OpSheet'], right_on=['OperNo', 'OpSheet'], how='left')
+# Step 1: Merge based on 'OpSheet' and 'OpNum' from df to 'OpSheet' and 'OperNo' from final_df
+merged_df = pd.merge(df, final_df, left_on=['OpSheet', 'OpNum'], right_on=['OpSheet', 'OperNo'], how='left')
 
-# Step 2: Handle one-to-many relationship by ensuring all 'StepNo' and other details are captured from final_df
-# If needed, group by the 'Operation' and 'OpSheet' in df to capture multiple steps
-# For this example, the merge already captures all the necessary parts from final_df
+# Step 2: Verify if there are any unmatched rows (Optional)
+unmatched_rows = merged_df[merged_df['OperNo'].isna()]
 
-# Step 3: (Optional) Fill any unmatched values or track unmatched rows if necessary
-unmatched_rows = merged_df[merged_df['PartAction'].isna()]
-
-# Step 4: Display the merged result and any unmatched rows
+# Step 3: Display the final merged DataFrame and any unmatched rows
 print("Merged DataFrame:\n", merged_df)
 print("\nUnmatched rows:\n", unmatched_rows)
