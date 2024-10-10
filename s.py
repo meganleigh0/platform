@@ -1,51 +1,40 @@
-import pandas as pd
-import numpy as np
+### Analysis of Work Center Deviations in Operations
+
+This analysis focuses on identifying the differences between the planned and assigned work centers for each operation. Each operation is planned to occur in a specific work center according to the material resource planning (MRP) system. However, due to various factors, many operations are reassigned to different work centers. 
+
+The difference between the planned work center (`WorkCenter`) and the assigned work center (`WCAssigned`) is represented as an encoded deviation. Larger deviations indicate significant movement of work content, which disrupts planning, leads to inefficiencies, and complicates the organization of parts and materials. This analysis aims to quantify and visualize these deviations to highlight which work centers experience the most disruption and which remain unaffected. 
+
+Understanding these deviations helps in addressing the challenges of material tracking and reducing inefficiencies caused by reassignments.
+
 import plotly.express as px
-import plotly.graph_objects as go
+import pandas as pd
 
-# Assuming you have a DataFrame 'df' with 'WorkCenter', 'WCAssigned', 'Difference', and 'PartNumber'
+# Group data by WorkCenter to summarize the deviation statistics
+summary_df = df.groupby('WorkCenter').agg(
+    avg_deviation=('Difference', 'mean'),
+    max_deviation=('Difference', 'max'),
+    min_deviation=('Difference', 'min'),
+    total_ops=('Difference', 'size'),
+    num_no_change=('Difference', lambda x: (x == 0).sum())  # Count operations with no change
+).reset_index()
 
-# Heatmap of Deviations
-heatmap_df = df.groupby(['WorkCenter', 'WCAssigned']).size().reset_index(name='count')
-
-fig_heatmap = px.density_heatmap(
-    heatmap_df, 
+# Create a grouped bar chart showing average deviation and number of no-change operations per work center
+fig_grouped_bar = px.bar(
+    summary_df, 
     x='WorkCenter', 
-    y='WCAssigned', 
-    z='count', 
-    title="Heatmap of Reassigned WorkCenters",
-    labels={'WorkCenter': 'Planned WorkCenter', 'WCAssigned': 'Assigned WorkCenter'}
+    y=['avg_deviation', 'num_no_change'],  # Show both deviation and stability metrics
+    title="Impact of Deviations by WorkCenter",
+    labels={'avg_deviation': 'Average Deviation', 'num_no_change': 'No Change (Count)'},
+    barmode='group',  # Group bars for better comparison
+    height=600,
+    width=1000
 )
-fig_heatmap.show()
 
-# Sankey Diagram to visualize flow between WorkCenter and WCAssigned
-# Create a list of unique work centers
-all_workcenters = list(set(df['WorkCenter'].unique()).union(set(df['WCAssigned'].unique())))
+fig_grouped_bar.update_layout(
+    xaxis_title="Planned WorkCenter",
+    yaxis_title="Deviation / No Change Count",
+    showlegend=True,
+    legend_title_text="Metrics"
+)
 
-# Create mappings from work center names to numerical indices for the sankey diagram
-workcenter_map = {workcenter: i for i, workcenter in enumerate(all_workcenters)}
-
-# Prepare the data for the Sankey diagram
-df['WorkCenter_num'] = df['WorkCenter'].map(workcenter_map)
-df['WCAssigned_num'] = df['WCAssigned'].map(workcenter_map)
-
-# Prepare the links for the Sankey diagram
-sankey_df = df.groupby(['WorkCenter_num', 'WCAssigned_num']).size().reset_index(name='value')
-
-# Sankey Diagram
-sankey_fig = go.Figure(go.Sankey(
-    node=dict(
-        pad=15,
-        thickness=20,
-        line=dict(color="black", width=0.5),
-        label=all_workcenters
-    ),
-    link=dict(
-        source=sankey_df['WorkCenter_num'],  # From planned work centers
-        target=sankey_df['WCAssigned_num'],  # To assigned work centers
-        value=sankey_df['value']  # How many operations were moved
-    )
-))
-
-sankey_fig.update_layout(title_text="Flow of Operations from Planned to Assigned WorkCenters", font_size=10)
-sankey_fig.show()
+fig_grouped_bar.show()
