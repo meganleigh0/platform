@@ -1,20 +1,17 @@
-Here’s a more polished version for your email:
+})
 
-Subject: Update on Simulation and Data Visualization
+# Step 1: First, merge on the 'opnum' (df1) and 'opernum' (df2)
+merged_df = pd.merge(df1, df2, left_on='opnum', right_on='opernum', how='left', suffixes=('_df1', '_df2'))
 
-Hi Brent,
+# Step 2: For rows where there are duplicates (non-unique 'opnum'), re-merge on both 'opnum' and 'opsheet'
+# Merge on both 'opnum' and 'opsheet' for more specific matching (handling duplicates)
+df_with_match = pd.merge(df1, df2, left_on=['opnum', 'opsheet'], right_on=['opernum', 'opsheet'], how='left', suffixes=('_df1', '_df2'))
 
-I hope you’re doing well.
+# Step 3: Fill missing values in the initial merge (from opnum matching) with the more specific match (opnum + opsheet)
+merged_df.update(df_with_match)
 
-Solumna is running smoothly, and I appreciate you checking in. Currently, we are executing the simulation locally using the Senpai library, which produces a CSV log of the results. Afterward, we use that log, along with others generated from the simulation, to create various visualizations.
+# Step 4: For any unmatched rows, fill missing 'value2' or the merged column with 0 or your preferred default value
+merged_df['value2'].fillna(0, inplace=True)
 
-The animations are developed in Python using the Plotly library, and we save them as HTML files for easy viewing. I’ve attached those HTML files for you to review. These represent the results from our Model 2, which incorporates the MBOM and Labor Standards.
-
-Since our recent visit to JSMC, we’ve received a lot of valuable input. We’re now working on addressing some of the discrepancies in the data we initially used and aligning it more closely with their processes, as we’ve discovered some significant differences in execution. Our current focus is on cleansing, mapping, and organizing the data properly so we can accurately model it moving forward.
-
-Please let me know if you have any questions or need further details.
-
-Best regards,
-[Your Name]
-
-Let me know if you’d like any further adjustments!
+# Now merged_df contains both direct and conditional merges based on your criteria
+print(merged_df)
