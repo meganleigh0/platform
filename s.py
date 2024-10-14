@@ -1,0 +1,3 @@
+I’m currently working on the deployment side of a machine learning algorithm we’re developing to help curate and summarize reports sent to the United Nations. The aim is to automate the auditing of reports, extracting key fields like themes and length—essentially, a solution to reduce manual work for UN agencies.
+
+It’s been exciting, as I’m collaborating with a team of four, and we’re all working on different aspects of the project. Let me know if you’d like to hear more or discuss the pipeline further!
