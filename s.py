@@ -17,30 +17,19 @@ bar_chart = alt.Chart(df2).mark_bar().encode(
     height=300
 )
 
-# Create a pie chart first
-pie_chart = alt.Chart(df2).mark_arc().encode(
+# Sunburst chart for total hours (simulating a doughnut chart)
+sunburst_chart = alt.Chart(df2).mark_arc().encode(
     theta=alt.Theta(field="Hours", type="quantitative", title="Total Hours"),
     color=alt.Color('ActionCategory:N', title="Action Category"),
     tooltip=['ActionCategory:N', 'Hours:Q']
 ).properties(
+    title="Total Hours by Action Category (Sunburst)",
     width=300,
     height=300
 )
 
-# Add a white circle in the middle to simulate a doughnut chart
-inner_circle = alt.Chart(pd.DataFrame({'dummy': ['']})).mark_arc(color='white').encode(
-    theta=alt.value(1),
-    color=alt.value('white')
-).properties(
-    width=100,
-    height=100
-)
-
-# Layer the pie chart and the inner white circle to create the doughnut effect
-doughnut_chart = pie_chart + inner_circle
-
-# Concatenate the doughnut chart and bar chart
-final_chart = alt.hconcat(doughnut_chart, bar_chart)
+# Concatenate the bar chart and sunburst chart
+final_chart = alt.hconcat(sunburst_chart, bar_chart)
 
 # Display the final chart
 final_chart.display()
