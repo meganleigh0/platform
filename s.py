@@ -5,24 +5,16 @@ import pandas as pd
 # Group the data by 'ActionCategory' and calculate total hours and count for each
 df2 = df.groupby('ActionCategory').agg({'Hours': 'sum', 'ActionCategory': 'count'}).rename(columns={'ActionCategory': 'Count'}).reset_index()
 
-# Create a simple bar chart showing total Hours with the Count displayed as text labels
+# Create a simple bar chart showing total Hours
 chart = alt.Chart(df2).mark_bar(size=40).encode(
     x=alt.X('ActionCategory:N', title="Action Category"),
     y=alt.Y('Hours:Q', title="Total Hours"),
-    color=alt.Color('ActionCategory:N', legend=None),
+    color=alt.Color('ActionCategory:N', legend=None),  # Remove the legend for simplicity
     tooltip=['ActionCategory:N', 'Hours:Q', 'Count:Q']
 ).properties(
     title="Total Hours and Count by Action Category",
     width=500,
     height=300
-).configure_axis(
-    grid=False  # Remove grid lines for a cleaner look
-).configure_view(
-    strokeWidth=0  # Remove the chart border
-).configure_title(
-    fontSize=16,
-    anchor='start',
-    offset=10
 )
 
 # Add text labels for the Count on top of the bars
@@ -34,8 +26,8 @@ text = chart.mark_text(
     text='Count:Q'  # Show count as labels
 )
 
-# Layer the bar chart and the text labels
+# Display the final chart with the text layered on top
 final_chart = chart + text
 
-# Display the chart
+# Display the final chart
 final_chart.display()
