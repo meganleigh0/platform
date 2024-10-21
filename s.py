@@ -1,61 +1,41 @@
-import plotly.graph_objects as go
-import plotly.express as px
+import altair as alt
+import pandas as pd
 
-# Assuming df2 is already created with 'ActionCategory', 'Hours', and 'Count'
+# Assuming your DataFrame 'df' is available
+# Group the data by 'ActionCategory' and calculate total hours and count for each
+df2 = df.groupby('ActionCategory').agg({'Hours': 'sum', 'ActionCategory': 'count'}).rename(columns={'ActionCategory': 'Count'}).reset_index()
 
-# Create a bar chart for the count of action categories
-bar_chart = go.Figure()
-
-bar_chart.add_trace(go.Bar(
-    x=df2['ActionCategory'], 
-    y=df2['Count'],
-    text=df2['Count'], 
-    textposition='outside', 
-    marker=dict(color='lightblue'),
-    name="Action Category Count"
-))
-
-# Remove grid, spines, and ticks to create a minimalist chart
-bar_chart.update_layout(
-    title="Action Category Count",
-    showlegend=False,
-    xaxis_title="Action Category",
-    yaxis_title="Count",
-    xaxis=dict(showline=False, showgrid=False, zeroline=False),
-    yaxis=dict(showline=False, showgrid=False, zeroline=False),
-    plot_bgcolor='white',
-    height=400,
-    width=600,
-    margin=dict(l=0, r=0, t=30, b=30)
+# Create a simple bar chart showing total Hours with the Count displayed as text labels
+chart = alt.Chart(df2).mark_bar(size=40).encode(
+    x=alt.X('ActionCategory:N', title="Action Category"),
+    y=alt.Y('Hours:Q', title="Total Hours"),
+    color=alt.Color('ActionCategory:N', legend=None),
+    tooltip=['ActionCategory:N', 'Hours:Q', 'Count:Q']
+).properties(
+    title="Total Hours and Count by Action Category",
+    width=500,
+    height=300
+).configure_axis(
+    grid=False  # Remove grid lines for a cleaner look
+).configure_view(
+    strokeWidth=0  # Remove the chart border
+).configure_title(
+    fontSize=16,
+    anchor='start',
+    offset=10
 )
 
-# Add hover labels for direct data display
-bar_chart.update_traces(
-    hovertemplate="Category: %{x}<br>Count: %{y}",
-    marker_line_width=1.5
+# Add text labels for the Count on top of the bars
+text = chart.mark_text(
+    align='center',
+    baseline='bottom',
+    dy=-5  # Move text slightly above the bars
+).encode(
+    text='Count:Q'  # Show count as labels
 )
 
-# Create a pie chart for total hours, styled minimally like a doughnut
-pie_chart = go.Figure()
+# Layer the bar chart and the text labels
+final_chart = chart + text
 
-pie_chart.add_trace(go.Pie(
-    labels=df2['ActionCategory'],
-    values=df2['Hours'],
-    hole=.4,  # To simulate a doughnut chart
-    textinfo='label+percent',
-    hoverinfo='label+value',
-    marker=dict(line=dict(color='#000000', width=1.5))
-))
-
-# Style the pie chart to be minimalist
-pie_chart.update_layout(
-    title="Total Hours by Action Category",
-    showlegend=False,
-    height=400,
-    width=600,
-    margin=dict(l=0, r=0, t=30, b=30)
-)
-
-# Show both graphs side by side
-bar_chart.show()
-pie_chart.show()
+# Display the chart
+final_chart.display()
