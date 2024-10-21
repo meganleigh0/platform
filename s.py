@@ -1,33 +1,35 @@
-import plotly.graph_objects as go
-import plotly.express as px
+import altair as alt
+import pandas as pd
 
-# Group by ActionCategory for Hours and Count
-df2 = df.groupby(['ActionCategory']).agg({"Hours": "sum", "ActionCategory": "count"}).rename(columns={"ActionCategory": "Count"})
-df2 = df2.round(1)
+# Assuming you have df loaded
+# Create the aggregate dataframe for Hours and Counts
+df2 = df.groupby('ActionCategory').agg({'Hours': 'sum', 'ActionCategory': 'count'}).rename(columns={'ActionCategory': 'Count'}).reset_index()
 
-# Doughnut chart for total hours
-fig = go.Figure()
+# Bar chart for Action Category Counts
+bar_chart = alt.Chart(df2).mark_bar().encode(
+    x=alt.X('ActionCategory:N', title="Action Category"),
+    y=alt.Y('Count:Q', title="Count"),
+    color='ActionCategory:N',
+    tooltip=['ActionCategory:N', 'Count:Q']
+).properties(
+    title="Action Category Count",
+    width=300,
+    height=300
+)
 
-# Add doughnut chart for Hours
-fig.add_trace(go.Pie(labels=df2.index, 
-                     values=df2['Hours'], 
-                     hole=.4, 
-                     hoverinfo="label+percent+value", 
-                     textinfo='label+value', 
-                     name="Total Hours"))
+# Simulate a doughnut chart (Altair uses layered arcs to simulate a pie chart)
+doughnut_chart = alt.Chart(df2).mark_arc(innerRadius=50, outerRadius=100).encode(
+    theta=alt.Theta('Hours:Q', title="Total Hours"),
+    color=alt.Color('ActionCategory:N', legend=None),
+    tooltip=['ActionCategory:N', 'Hours:Q']
+).properties(
+    title="Total Hours by Action Category",
+    width=300,
+    height=300
+)
 
-# Update layout for the doughnut chart
-fig.update_traces(marker=dict(line=dict(color='#000000', width=2)))
-fig.update_layout(title_text="Assembly Hours by Action Category (Doughnut Chart)",
-                  annotations=[dict(text='Hours', x=0.5, y=0.5, font_size=20, showarrow=False)],
-                  height=500, width=500)
+# Concatenate the bar chart and the doughnut chart
+final_chart = alt.hconcat(doughnut_chart, bar_chart)
 
-# Create a bar chart for the counts
-fig2 = px.bar(df2, x=df2.index, y='Count', title="Action Category Count", text='Count')
-
-# Update layout for bar chart
-fig2.update_layout(height=300, width=500, yaxis_title="Count")
-
-# Show both figures
-fig.show()
-fig2.show()
+# Show the final chart
+final_chart.display()
