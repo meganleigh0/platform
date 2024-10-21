@@ -1,7 +1,7 @@
 import altair as alt
 import pandas as pd
 
-# Assuming your DataFrame `df` is available
+# Assuming your DataFrame 'df' is available
 # Group the data by 'ActionCategory' and calculate total hours and count for each
 df2 = df.groupby('ActionCategory').agg({'Hours': 'sum', 'ActionCategory': 'count'}).rename(columns={'ActionCategory': 'Count'}).reset_index()
 
@@ -17,20 +17,30 @@ bar_chart = alt.Chart(df2).mark_bar().encode(
     height=300
 )
 
-# Simulated Doughnut chart using a Pie chart
-# In Altair, we can use 'mark_arc' for pie chart and set an inner radius to simulate a doughnut
-doughnut_chart = alt.Chart(df2).mark_arc(innerRadius=50).encode(
+# Create a pie chart first
+pie_chart = alt.Chart(df2).mark_arc().encode(
     theta=alt.Theta(field="Hours", type="quantitative", title="Total Hours"),
     color=alt.Color('ActionCategory:N', title="Action Category"),
     tooltip=['ActionCategory:N', 'Hours:Q']
 ).properties(
-    title="Total Hours by Action Category",
     width=300,
     height=300
 )
 
-# Concatenate the bar chart and doughnut chart
+# Add a white circle in the middle to simulate a doughnut chart
+inner_circle = alt.Chart(pd.DataFrame({'dummy': ['']})).mark_arc(color='white').encode(
+    theta=alt.value(1),
+    color=alt.value('white')
+).properties(
+    width=100,
+    height=100
+)
+
+# Layer the pie chart and the inner white circle to create the doughnut effect
+doughnut_chart = pie_chart + inner_circle
+
+# Concatenate the doughnut chart and bar chart
 final_chart = alt.hconcat(doughnut_chart, bar_chart)
 
-# Display the chart
+# Display the final chart
 final_chart.display()
