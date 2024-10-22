@@ -33,8 +33,6 @@ base_chart = alt.Chart(df_grouped).mark_bar().encode(
     title="Assembly Operator Man Assignment by Workcenter",
     width=150,  # Adjust width for each workcenter
     height=400
-).configure_view(
-    strokeWidth=0  # No grid lines
 )
 
 # Calculate the top 3 maximum End_Time values overall
@@ -51,6 +49,11 @@ annotations_top_3 = alt.Chart(top_3_max).mark_text(
 
 # Combine the base chart and the annotations
 final_chart = base_chart + annotations_top_3
+
+# Now apply the configuration for no grid lines at the end, after layering
+final_chart = final_chart.configure_view(
+    strokeWidth=0  # No grid lines
+)
 
 # Display the final chart
 final_chart.show()
