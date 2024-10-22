@@ -27,31 +27,17 @@ base_chart = alt.Chart(df_grouped).mark_bar().encode(
     x=alt.X('Start_Time:Q', title='Start Time (Hours)', axis=alt.Axis(grid=False)),  # No grid lines
     x2='End_Time:Q',
     y=alt.Y('Operator:N', title='Operator'),
-    color=alt.Color('Workcenter:N', title='Workcenter', sort=workcenter_order, scale=alt.Scale(scheme='category20')),
-    column=alt.Column('Workcenter:N', title='Workcenter', sort=workcenter_order)  # Group by work center
+    color=alt.Color('Workcenter:N', title='Workcenter', sort=workcenter_order, scale=alt.Scale(scheme='category20'))
+).facet(
+    column=alt.Column('Workcenter:N', title='Workcenter', sort=workcenter_order)  # Facet by work center
 ).properties(
     title="Assembly Operator Man Assignment by Workcenter",
     width=150,  # Adjust width for each workcenter
     height=400
 )
 
-# Calculate the top 3 maximum End_Time values overall
-top_3_max = df_grouped.nlargest(3, 'End_Time')
-
-# Annotations for the top 3 maximum times
-annotations_top_3 = alt.Chart(top_3_max).mark_text(
-    align='left', dx=5, dy=-5, color='black'
-).encode(
-    x=alt.X('End_Time:Q'),
-    y=alt.Y('Operator:N'),
-    text=alt.Text('End_Time:Q', format='.2f')
-)
-
-# Combine the base chart and the annotations
-final_chart = base_chart + annotations_top_3
-
-# Now apply the configuration for no grid lines at the end, after layering
-final_chart = final_chart.configure_view(
+# Apply no grid lines configuration globally without layering
+final_chart = base_chart.configure_view(
     strokeWidth=0  # No grid lines
 )
 
