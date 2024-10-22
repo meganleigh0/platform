@@ -22,25 +22,32 @@ workcenter_order = ['400A', '400B', '4001', '4002', '4003', '4004', '4005', '400
 # Ensure workcenter is ordered correctly
 df_grouped['Workcenter'] = pd.Categorical(df_grouped['Workcenter'], categories=workcenter_order, ordered=True)
 
-# Ensure data is passed correctly to the chart
+# Base grouped bar chart
 base_chart = alt.Chart(df_grouped).mark_bar().encode(
-    x=alt.X('Start_Time:Q', title='Start Time (Hours)', axis=alt.Axis(grid=False)),  # No grid lines
-    x2='End_Time:Q',
-    y=alt.Y('Operator:N', title='Operator'),
-    color=alt.Color('Workcenter:N', title='Workcenter', sort=workcenter_order, scale=alt.Scale(scheme='category20'))
-).facet(
-    facet=alt.Facet('Workcenter:N', title='Workcenter', sort=workcenter_order)  # Facet by work center
+    x=alt.X('Workcenter:N', title='Workcenter', sort=workcenter_order),  # X axis is workcenter, sorted
+    y=alt.Y('End_Time:Q', title='End Time (Hours)'),  # Y axis is End_Time
+    color=alt.Color('Operator:N', title='Operator'),  # Color by operator
+    column=alt.Column('Workcenter:N', title='Workcenter', sort=workcenter_order),  # Group bars by work center
 ).properties(
     title="Assembly Operator Man Assignment by Workcenter",
-    width=150,  # Adjust width for each workcenter
-    height=400,
-    data=df_grouped  # Explicitly pass the dataframe
+    width=200,  # Adjust width for each workcenter
+    height=400
 )
 
-# Apply no grid lines configuration globally without layering
-final_chart = base_chart.configure_view(
-    strokeWidth=0  # No grid lines
+# Calculate the top 3 maximum End_Time values overall
+top_3_max = df_grouped.nlargest(3, 'End_Time')
+
+# Annotations for the top 3 maximum times
+annotations_top_3 = alt.Chart(top_3_max).mark_text(
+    align='left', dx=5, dy=-5, color='black'
+).encode(
+    x=alt.X('Workcenter:N', sort=workcenter_order),
+    y=alt.Y('End_Time:Q'),
+    text=alt.Text('End_Time:Q', format='.2f')
 )
+
+# Combine the base chart and the annotations
+final_chart = base_chart + annotations_top_3
 
 # Display the final chart
 final_chart.show()
