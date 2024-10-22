@@ -1,41 +1,50 @@
 import altair as alt
+import pandas as pd
 
-# Assuming each operator starts at time zero and the end time is their max End_Time
-df_grouped['Start_Time'] = 0  # Add a column to represent the start time as zero
+# Assuming `top_ten_max` is already your DataFrame with the top 10 rows
+# Example DataFrame (replace with your own)
+top_ten_max = pd.DataFrame({
+    'WCAssigned': ['Operator 14 - 1', 'Operator 4 & 5 - SUBS', 'Operator 13 - 1', ...],  # Replace ... with actual values
+    'Critical_Path_End_Time': [25, 23, 22, ...],  # Replace with actual values
+    'Program': ['Program A', 'Program B', 'Program A', ...],  # Replace with actual values
+    'Operator_Max_Critical_Path': [25, 23, 22, ...],  # Replace with actual values
+    'WC_Hours': [40, 38, 37, ...]  # Replace with actual values
+})
 
-# Define the correct order for the work centers to reflect the assembly line order
-workcenter_order = ['400A', '400B', '4001', '4002', '4003', '4004', '4005', '4006', '4007', 
-                    '4008', '4009', '4010', '4011', '4012', '4013', '4014', '4015', '4016', '4017']
-
-# Ensure Workcenter is ordered correctly
-df_grouped['Workcenter'] = pd.Categorical(df_grouped['Workcenter'], categories=workcenter_order, ordered=True)
-
-# Create a Gantt-like bar chart where each operator starts at 0 and ends at their End_Time
-base_chart = alt.Chart(df_grouped).mark_bar().encode(
-    x=alt.X('Start_Time:Q', title='Time (Hours)', axis=alt.Axis(grid=False)),  # Start at zero
-    x2='End_Time:Q',  # End time for each operator
-    y=alt.Y('Workcenter:N', title='Workcenter', sort=workcenter_order),  # Workcenter on Y axis
-    color=alt.Color('Operator:N', title='Operator'),  # Color by operator
-    tooltip=['Operator:N', 'End_Time:Q']  # Show operator and time on hover
+# Create the bar chart
+bars = alt.Chart(top_ten_max).mark_bar().encode(
+    x=alt.X('WCAssigned', title='Work Center'),
+    y=alt.Y('Critical_Path_End_Time', title='Critical Path End Time (hours)'),
+    color='Program',
+    tooltip=['WCAssigned', 'Critical_Path_End_Time', 'WC_Hours']
 ).properties(
-    title='Operator Loading Chart by Workcenter',
-    width=800,
-    height=400
+    title="Top 10 Critical Path Work Centers by Program"
 )
 
-# Annotate the critical path (longest duration per WorkCenter)
-critical_path = df_grouped.loc[df_grouped.groupby('Workcenter')['End_Time'].idxmax()]  # Critical path as longest End_Time
-
-annotations_cp = alt.Chart(critical_path).mark_text(
-    align='left', dx=3, dy=-5, color='black'
+# Add annotations for the top 3 maximum values
+annotations = alt.Chart(top_ten_max).mark_text(
+    align='left',
+    baseline='middle',
+    dx=3  # Nudges text to the right
 ).encode(
-    x=alt.X('End_Time:Q'),
-    y=alt.Y('Workcenter:N', sort=workcenter_order),
-    text=alt.Text('End_Time:Q', format='.2f')
+    x='WCAssigned',
+    y='Critical_Path_End_Time',
+    text=alt.condition(
+        alt.datum.Critical_Path_End_Time.isin(sorted(top_ten_max['Critical_Path_End_Time'], reverse=True)[:3]), 
+        alt.value('MAX'), 
+        alt.value('')
+    )
 )
 
-# Combine the base chart and the critical path annotations
-final_chart = base_chart + annotations_cp
+# Combine the bars and annotations
+chart = bars + annotations
 
-# Display the final chart
-final_chart.display()
+# Display the chart
+chart.configure_axis(
+    labelAngle=0
+).configure_title(
+    fontSize=16
+).configure_legend(
+    titleFontSize=12,
+    labelFontSize=10
+)
