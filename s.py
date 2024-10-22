@@ -10,15 +10,15 @@ workcenter_order = ['400A', '400B', '4001', '4002', '4003', '4004', '4005', '400
 # Ensure Workcenter is ordered correctly
 df_grouped['Workcenter'] = pd.Categorical(df_grouped['Workcenter'], categories=workcenter_order, ordered=True)
 
-# Create grouped bar chart (not stacked)
+# Create grouped bar chart (bars side by side per Workcenter)
 base_chart = alt.Chart(df_grouped).mark_bar().encode(
-    x=alt.X('Workcenter:N', title='Workcenter', sort=workcenter_order),
+    x=alt.X('Workcenter:N', title='Workcenter', sort=workcenter_order),  # X axis is Workcenter
     y=alt.Y('End_Time:Q', title='End Time (Hours)'),  # Y axis is the max End_Time for each operator
     color=alt.Color('Operator:N', title='Operator'),  # Color by operator
-    column='Workcenter:N'  # Group by Workcenter
+    tooltip=['Operator:N', 'End_Time:Q']  # Show operator and time on hover
 ).properties(
     title='Operator Max End Time by Workcenter',
-    width=100,  # Adjust the width for each group
+    width=800,  # Wider to fit all Workcenters
     height=400
 )
 
