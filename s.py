@@ -20,14 +20,15 @@ workcenter_order = ['400A', '400B', '4001', '4002', '4003', '4004', '4005', '400
 # Ensure workcenter is ordered correctly
 df_grouped['Workcenter'] = pd.Categorical(df_grouped['Workcenter'], categories=workcenter_order, ordered=True)
 
-# Base grouped bar chart
+# Base grouped bar chart (not stacked)
 base_chart = alt.Chart(df_grouped).mark_bar().encode(
-    x=alt.X('Workcenter:N', title='Workcenter', sort=workcenter_order),  # X axis is workcenter, sorted
+    x=alt.X('Operator:N', title='Operator'),  # X axis is Operator for grouping
     y=alt.Y('End_Time:Q', title='End Time (Hours)'),  # Y axis is the max End_Time for each operator
     color=alt.Color('Operator:N', title='Operator'),  # Color by operator
+    column=alt.Column('Workcenter:N', title='Workcenter', sort=workcenter_order)  # Grouped by work center
 ).properties(
     title="Operator Max End Time by Workcenter",
-    width=600,  # Adjust width
+    width=100,  # Adjust width for each workcenter column
     height=400
 )
 
@@ -36,11 +37,12 @@ top_3_max = df_grouped.nlargest(3, 'End_Time')
 
 # Annotations for the top 3 maximum times
 annotations_top_3 = alt.Chart(top_3_max).mark_text(
-    align='left', dx=3, dy=-5, color='black'
+    align='center', dy=-10, color='black'
 ).encode(
-    x=alt.X('Workcenter:N', sort=workcenter_order),
+    x=alt.X('Operator:N'),
     y=alt.Y('End_Time:Q'),
-    text=alt.Text('End_Time:Q', format='.2f')
+    text=alt.Text('End_Time:Q', format='.2f'),
+    column=alt.Column('Workcenter:N', sort=workcenter_order)
 )
 
 # Combine the base chart and the annotations
