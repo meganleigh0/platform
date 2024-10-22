@@ -22,18 +22,19 @@ workcenter_order = ['400A', '400B', '4001', '4002', '4003', '4004', '4005', '400
 # Ensure workcenter is ordered correctly
 df_grouped['Workcenter'] = pd.Categorical(df_grouped['Workcenter'], categories=workcenter_order, ordered=True)
 
-# Base chart with grouped bars for each workcenter, ensuring proper sorting
+# Ensure data is passed correctly to the chart
 base_chart = alt.Chart(df_grouped).mark_bar().encode(
     x=alt.X('Start_Time:Q', title='Start Time (Hours)', axis=alt.Axis(grid=False)),  # No grid lines
     x2='End_Time:Q',
     y=alt.Y('Operator:N', title='Operator'),
     color=alt.Color('Workcenter:N', title='Workcenter', sort=workcenter_order, scale=alt.Scale(scheme='category20'))
 ).facet(
-    column=alt.Column('Workcenter:N', title='Workcenter', sort=workcenter_order)  # Facet by work center
+    facet=alt.Facet('Workcenter:N', title='Workcenter', sort=workcenter_order)  # Facet by work center
 ).properties(
     title="Assembly Operator Man Assignment by Workcenter",
     width=150,  # Adjust width for each workcenter
-    height=400
+    height=400,
+    data=df_grouped  # Explicitly pass the dataframe
 )
 
 # Apply no grid lines configuration globally without layering
