@@ -1,7 +1,7 @@
 import altair as alt
 
-# Group by Operator and Workcenter, getting the max End_Time for each group
-df_grouped = df.groupby(['Operator', 'Workcenter'], as_index=False).agg({'End_Time': 'max'})
+# Assuming each operator starts at time zero and the end time is their max End_Time
+df_grouped['Start_Time'] = 0  # Add a column to represent the start time as zero
 
 # Define the correct order for the work centers to reflect the assembly line order
 workcenter_order = ['400A', '400B', '4001', '4002', '4003', '4004', '4005', '4006', '4007', 
@@ -10,32 +10,32 @@ workcenter_order = ['400A', '400B', '4001', '4002', '4003', '4004', '4005', '400
 # Ensure Workcenter is ordered correctly
 df_grouped['Workcenter'] = pd.Categorical(df_grouped['Workcenter'], categories=workcenter_order, ordered=True)
 
-# Create grouped bar chart (bars side by side per Workcenter)
+# Create a Gantt-like bar chart where each operator starts at 0 and ends at their End_Time
 base_chart = alt.Chart(df_grouped).mark_bar().encode(
-    x=alt.X('Workcenter:N', title='Workcenter', sort=workcenter_order),  # X axis is Workcenter
-    y=alt.Y('End_Time:Q', title='End Time (Hours)'),  # Y axis is the max End_Time for each operator
+    x=alt.X('Start_Time:Q', title='Time (Hours)', axis=alt.Axis(grid=False)),  # Start at zero
+    x2='End_Time:Q',  # End time for each operator
+    y=alt.Y('Workcenter:N', title='Workcenter', sort=workcenter_order),  # Workcenter on Y axis
     color=alt.Color('Operator:N', title='Operator'),  # Color by operator
     tooltip=['Operator:N', 'End_Time:Q']  # Show operator and time on hover
 ).properties(
-    title='Operator Max End Time by Workcenter',
-    width=800,  # Wider to fit all Workcenters
+    title='Operator Loading Chart by Workcenter',
+    width=800,
     height=400
 )
 
-# Calculate the top 3 maximum End_Time values overall for annotation
-top3_max = df_grouped.nlargest(3, 'End_Time')
+# Annotate the critical path (longest duration per WorkCenter)
+critical_path = df_grouped.loc[df_grouped.groupby('Workcenter')['End_Time'].idxmax()]  # Critical path as longest End_Time
 
-# Annotations for the top 3 maximum times
-annotations_top_3 = alt.Chart(top3_max).mark_text(
+annotations_cp = alt.Chart(critical_path).mark_text(
     align='left', dx=3, dy=-5, color='black'
 ).encode(
-    x=alt.X('Workcenter:N', sort=workcenter_order),
-    y=alt.Y('End_Time:Q'),
+    x=alt.X('End_Time:Q'),
+    y=alt.Y('Workcenter:N', sort=workcenter_order),
     text=alt.Text('End_Time:Q', format='.2f')
 )
 
-# Combine the base chart and the annotations
-final_chart = base_chart + annotations_top_3
+# Combine the base chart and the critical path annotations
+final_chart = base_chart + annotations_cp
 
 # Display the final chart
 final_chart.display()
