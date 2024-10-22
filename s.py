@@ -1,34 +1,14 @@
 
-import pandas as pd
-import plotly.graph_objects as go
 
-# Data from the image, reorganized into a dictionary
-data = {
-    "Program": ["Program A", "Program B", "Program C", "Program D"],
-    "T Op Count": [351, 346, 346, 358],
-    "T Op Hours": [155.75, 155.51, 153.13, 147.1],
-    "T Cycle Time": [81.12, 81.12, 80.88, 76.56],
-    "H Op Count": [576, 576, 575, 502],
-    "H Op Hours": [201.72, 202.84, 201.62, 187.42],
-    "H Cycle Time": [111.42, 106.38, 111.42, 109.44],
-}
+Here’s a concise weekly update based on your notes:
 
-# Create a pandas DataFrame
-df = pd.DataFrame(data)
+Weekly Update:
 
-# Create a Plotly table
-fig = go.Figure(data=[go.Table(
-    header=dict(values=list(df.columns),
-                fill_color='paleturquoise',
-                align='left'),
-    cells=dict(values=[df.Program, df["T Op Count"], df["T Op Hours"], df["T Cycle Time"], 
-                       df["H Op Count"], df["H Op Hours"], df["H Cycle Time"]],
-               fill_color='lavender',
-               align='left'))
-])
+	•	Worked with Tommy to review and discuss data mapping of part numbers to operations, using data from Solumna and operational information. We focused on identifying patterns in the bin location nomenclature, particularly related to the use of asterisks (none, one, or two) to mark physical bin locations on the floor.
+	•	Engaged with Dalton to clarify suffixes and prefixes in bin locations (e.g., VMI, ROP, K, R), and he provided a contact in materials to further explore these identifiers. We are in the process of following up with them for more details.
+	•	Discussed the missing operation sheet for Operation 11 with Dalton. There seems to be confusion about whether this is an issue on the manufacturing engineering side or if they are aware of it. No clear path forward yet, so I’m considering next steps for follow-up.
+	•	Met with Dalton to learn how to export material data from Solumna. I saved the planning page as a homepage and explored filters to export the relevant data. He confirmed that the latest revision must be marked as “Plan Complete.” It seems Solumna is primarily used for planning purposes, with no other data being inputted beyond the “parts when used” data.
+	•	Continued work on the presentation for the turret operation and man assignment processing pipeline, outlining progress on the turret line’s bottlenecks and quality issues. Prepared detailed notes on missing data prior to a meeting with Eric and Aubrey, where we clarified questions regarding turret line operations.
+	•	Participated in discussions regarding quality and bottlenecks on the turret line, documenting ongoing concerns and areas for improvement.
 
-# Add a title to the figure
-fig.update_layout(title="Operational Summary by Program")
-
-# Show the figure
-fig.show()
+This update succinctly covers the key points you mentioned while maintaining a professional tone. Let me know if you’d like to refine or expand any sections!
