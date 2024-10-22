@@ -1,19 +1,17 @@
 import altair as alt
 import pandas as pd
 
-# Example dataframe structure
+# Example dataframe structure similar to yours
 df = pd.DataFrame({
-    'Operator': ['Operator 10', 'Operator 10', 'Operator 11', 'Operator 12', ...],  # Add your operator names
-    'Workcenter': ['400A', '400A', '400B', '4001', ...],  # Add your workcenter names
-    'OpNum': [1, 2, 3, 4, ...],  # Add your operation numbers
-    'Start_Time': [1, 1.5, 2, 3, ...],  # Add your start times
-    'End_Time': [5, 4.5, 6, 7, ...],  # Add your end times
+    'Operator': ['Operator 10', 'Operator 10', 'Operator 11', 'Operator 12', 'Operator 13'],  # Add your operator names
+    'Workcenter': ['400A', '400A', '400B', '400B', '400A'],  # Add your workcenter names
+    'Start_Time': [0, 0, 0, 0, 0],  # All operations start at 0 for simplicity
+    'End_Time': [5, 3, 6, 7, 2]  # End times for each operator
 })
 
-# Group by Operator and Workcenter and get the max End_Time for each group
+# Group by Operator and Workcenter, getting the max End_Time for each group
 df_grouped = df.groupby(['Operator', 'Workcenter'], as_index=False).agg({
-    'Start_Time': 'min',  # Start time of the first operation at that work center
-    'End_Time': 'max'  # End time of the last operation at that work center
+    'End_Time': 'max'  # Max End_Time per operator per work center
 })
 
 # Define the correct order for the work centers to reflect the assembly line order
@@ -25,21 +23,20 @@ df_grouped['Workcenter'] = pd.Categorical(df_grouped['Workcenter'], categories=w
 # Base grouped bar chart
 base_chart = alt.Chart(df_grouped).mark_bar().encode(
     x=alt.X('Workcenter:N', title='Workcenter', sort=workcenter_order),  # X axis is workcenter, sorted
-    y=alt.Y('End_Time:Q', title='End Time (Hours)'),  # Y axis is End_Time
+    y=alt.Y('End_Time:Q', title='End Time (Hours)'),  # Y axis is the max End_Time for each operator
     color=alt.Color('Operator:N', title='Operator'),  # Color by operator
-    column=alt.Column('Workcenter:N', title='Workcenter', sort=workcenter_order),  # Group bars by work center
 ).properties(
-    title="Assembly Operator Man Assignment by Workcenter",
-    width=200,  # Adjust width for each workcenter
+    title="Operator Max End Time by Workcenter",
+    width=600,  # Adjust width
     height=400
 )
 
-# Calculate the top 3 maximum End_Time values overall
+# Calculate the top 3 maximum End_Time values overall for annotation
 top_3_max = df_grouped.nlargest(3, 'End_Time')
 
 # Annotations for the top 3 maximum times
 annotations_top_3 = alt.Chart(top_3_max).mark_text(
-    align='left', dx=5, dy=-5, color='black'
+    align='left', dx=3, dy=-5, color='black'
 ).encode(
     x=alt.X('Workcenter:N', sort=workcenter_order),
     y=alt.Y('End_Time:Q'),
