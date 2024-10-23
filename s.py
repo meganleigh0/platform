@@ -1,14 +1,74 @@
+import pandas as pd
+import plotly.express as px
 
+# Original data with cycle times
+data = {
+    "Program": ["Program A", "Program B", "Program C", "Program D"],
+    "T Op Count": [351, 346, 346, 358],
+    "T Op Hours": [155.75, 155.51, 153.13, 147.1],
+    "T Cycle Time": [81.12, 81.12, 80.88, 76.56],  # in minutes
+    "H Op Count": [576, 576, 575, 502],
+    "H Op Hours": [201.72, 202.84, 201.62, 187.42],
+    "H Cycle Time": [111.42, 106.38, 111.42, 109.44],  # in minutes
+}
 
-Here’s a concise weekly update based on your notes:
+df_programs = pd.DataFrame(data)
 
-Weekly Update:
+# Sample scheduled quantities per month for each program
+# Replace this with your actual scheduled data
+schedule_data = {
+    'Program': ['Program A', 'Program B', 'Program C', 'Program D'] * 3,
+    'Month': ['October', 'October', 'October', 'October',
+              'November', 'November', 'November', 'November',
+              'December', 'December', 'December', 'December'],
+    'Scheduled_T_Units': [50, 60, 40, 70, 55, 65, 45, 75, 60, 70, 50, 80],
+    'Scheduled_H_Units': [80, 90, 70, 100, 85, 95, 75, 105, 90, 100, 80, 110]
+}
 
-	•	Worked with Tommy to review and discuss data mapping of part numbers to operations, using data from Solumna and operational information. We focused on identifying patterns in the bin location nomenclature, particularly related to the use of asterisks (none, one, or two) to mark physical bin locations on the floor.
-	•	Engaged with Dalton to clarify suffixes and prefixes in bin locations (e.g., VMI, ROP, K, R), and he provided a contact in materials to further explore these identifiers. We are in the process of following up with them for more details.
-	•	Discussed the missing operation sheet for Operation 11 with Dalton. There seems to be confusion about whether this is an issue on the manufacturing engineering side or if they are aware of it. No clear path forward yet, so I’m considering next steps for follow-up.
-	•	Met with Dalton to learn how to export material data from Solumna. I saved the planning page as a homepage and explored filters to export the relevant data. He confirmed that the latest revision must be marked as “Plan Complete.” It seems Solumna is primarily used for planning purposes, with no other data being inputted beyond the “parts when used” data.
-	•	Continued work on the presentation for the turret operation and man assignment processing pipeline, outlining progress on the turret line’s bottlenecks and quality issues. Prepared detailed notes on missing data prior to a meeting with Eric and Aubrey, where we clarified questions regarding turret line operations.
-	•	Participated in discussions regarding quality and bottlenecks on the turret line, documenting ongoing concerns and areas for improvement.
+df_schedule = pd.DataFrame(schedule_data)
 
-This update succinctly covers the key points you mentioned while maintaining a professional tone. Let me know if you’d like to refine or expand any sections!
+# Merge the cycle times into the schedule DataFrame
+df_schedule = df_schedule.merge(df_programs[['Program', 'T Cycle Time', 'H Cycle Time']], on='Program', how='left')
+
+# Calculate the predicted T and H operational hours
+df_schedule['Predicted_T_Op_Hours'] = (df_schedule['Scheduled_T_Units'] * df_schedule['T Cycle Time']) / 60  # Convert minutes to hours
+df_schedule['Predicted_H_Op_Hours'] = (df_schedule['Scheduled_H_Units'] * df_schedule['H Cycle Time']) / 60  # Convert minutes to hours
+
+# Sum up the total predicted operational hours per month
+df_monthly = df_schedule.groupby('Month').agg({
+    'Predicted_T_Op_Hours': 'sum',
+    'Predicted_H_Op_Hours': 'sum'
+}).reset_index()
+
+# Melt the DataFrame for easier plotting
+df_melted = df_monthly.melt(id_vars='Month', value_vars=['Predicted_T_Op_Hours', 'Predicted_H_Op_Hours'],
+                            var_name='Operation Type', value_name='Operational Hours')
+
+# Map operation types to more readable labels
+df_melted['Operation Type'] = df_melted['Operation Type'].map({
+    'Predicted_T_Op_Hours': 'T Operations',
+    'Predicted_H_Op_Hours': 'H Operations'
+})
+
+# Create the visualization
+fig = px.bar(df_melted, x='Month', y='Operational Hours', color='Operation Type',
+             title='Predicted Operational Hours per Month',
+             labels={'Operational Hours': 'Operational Hours', 'Operation Type': 'Operation Type'},
+             barmode='group',
+             text='Operational Hours')
+
+# Update layout for better aesthetics
+fig.update_layout(
+    xaxis_title='Month',
+    yaxis_title='Operational Hours',
+    legend_title='Operation Type',
+    template='plotly_white',
+    uniformtext_minsize=8,
+    uniformtext_mode='hide'
+)
+
+# Add data labels
+fig.update_traces(texttemplate='%{text:.2f}', textposition='outside')
+
+# Show the figure
+fig.show()
