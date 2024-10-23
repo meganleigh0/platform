@@ -65,6 +65,10 @@ df_melted['Operation Type'] = df_melted['Operation Type'].map({
     'Predicted_H_Op_Hours': 'H Operations'
 })
 
+# Convert 'Month' to string format for plotting
+df_melted['Month_str'] = df_melted['Month'].dt.strftime('%Y-%m-%d')
+df_monthly['Month_str'] = df_monthly['Month'].dt.strftime('%Y-%m-%d')
+
 # Define capacity line (assuming maximum capacity is based on available personnel)
 max_capacity = 120 * 10  # For example, 10 personnel available, adjust as needed
 
@@ -75,28 +79,27 @@ fig = go.Figure()
 for operation in df_melted['Operation Type'].unique():
     df_op = df_melted[df_melted['Operation Type'] == operation]
     fig.add_trace(go.Bar(
-        x=df_op['Month'],
+        x=df_op['Month_str'],
         y=df_op['Operational Hours'],
         name=operation,
-        text=df_op['Operational Hours'],
+        text=df_op['Operational Hours'].round(2),
         textposition='auto'
     ))
 
 # Add a line trace for total operational hours
 fig.add_trace(go.Scatter(
-    x=df_monthly['Month'],
+    x=df_monthly['Month_str'],
     y=df_monthly['Total_Predicted_Op_Hours'],
     mode='lines+markers',
     name='Total Operational Hours',
     line=dict(color='black', width=2, dash='dash'),
     marker=dict(size=8),
-    hoverinfo='text',
-    text=['Total: {:.2f} hrs'.format(h) for h in df_monthly['Total_Predicted_Op_Hours']]
+    hovertemplate='Total: %{y:.2f} hrs<br>Date: %{x}'
 ))
 
 # Add a line for capacity
 fig.add_trace(go.Scatter(
-    x=df_monthly['Month'],
+    x=df_monthly['Month_str'],
     y=[max_capacity] * len(df_monthly),
     mode='lines',
     name='Maximum Capacity',
@@ -107,7 +110,7 @@ fig.add_trace(go.Scatter(
 # Add annotations for man-loading requirements
 for idx, row in df_monthly.iterrows():
     fig.add_annotation(
-        x=row['Month'],
+        x=row['Month_str'],
         y=row['Total_Predicted_Op_Hours'] + 50,  # Adjust position as needed
         text='Req. Personnel: {:.1f}'.format(row['Man_Loading_Requirement']),
         showarrow=False,
@@ -124,14 +127,14 @@ fig.update_layout(
     barmode='stack',
     template='plotly_white',
     xaxis=dict(
-        tickformat='%b %Y',
-        dtick="M1",
-        tickmode="linear"
+        tickmode='array',
+        tickvals=df_monthly['Month_str'],
+        ticktext=df_monthly['Month'].dt.strftime('%b %Y')
     ),
     hovermode='x unified',
     annotations=[
         dict(
-            x=df_monthly['Month'].iloc[-1],
+            x=df_monthly['Month_str'].iloc[-1],
             y=max_capacity,
             xref='x',
             yref='y',
