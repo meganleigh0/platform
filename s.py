@@ -1,3 +1,3 @@
-I understand the stakes involved in this field, and although I am continuously learning, my applied coursework and hands-on projects have provided me with invaluable experience. Attached are a cloud migration proposal and an affinity wall project that were successfully delivered to external companies—both projects received positive feedback.
+a cloud migration proposal and an affinity wall for external companies.
 
-I am committed to collaborating, problem-solving, and delivering data-driven insights. I look forward to discussing how my background and ongoing work can contribute to your team’s objectives.
+I bring a collaborative, problem-solving mindset and value data-driven insights, acknowledging that there’s always more to learn outside the classroom. While I’m not an expert in every area, I approach each challenge with a focus on practical, impactful solutions.
