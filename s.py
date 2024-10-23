@@ -1,7 +1,5 @@
 import pandas as pd
-import plotly.express as px
 import plotly.graph_objects as go
-from pandas.tseries.offsets import MonthEnd
 
 # Original data with cycle times
 data = {
@@ -20,27 +18,36 @@ df_programs = pd.DataFrame(data)
 # Replace this with your actual scheduled data
 schedule_data = {
     'Program': ['Program A', 'Program B', 'Program C', 'Program D'] * 6,
-    'Month': ['2023-10-31', '2023-10-31', '2023-10-31', '2023-10-31',
-              '2023-11-30', '2023-11-30', '2023-11-30', '2023-11-30',
-              '2023-12-31', '2023-12-31', '2023-12-31', '2023-12-31',
-              '2024-01-31', '2024-01-31', '2024-01-31', '2024-01-31',
-              '2024-02-29', '2024-02-29', '2024-02-29', '2024-02-29',
-              '2024-03-31', '2024-03-31', '2024-03-31', '2024-03-31'],
+    'Month': ['2023-10', '2023-10', '2023-10', '2023-10',
+              '2023-11', '2023-11', '2023-11', '2023-11',
+              '2023-12', '2023-12', '2023-12', '2023-12',
+              '2024-01', '2024-01', '2024-01', '2024-01',
+              '2024-02', '2024-02', '2024-02', '2024-02',
+              '2024-03', '2024-03', '2024-03', '2024-03'],
     'Scheduled_T_Units': [50, 60, 40, 70, 55, 65, 45, 75, 60, 70, 50, 80, 65, 75, 55, 85, 70, 80, 60, 90, 75, 85, 65, 95],
-    'Scheduled_H_Units': [80, 90, 70, 100, 85, 95, 75, 105, 90, 100, 80, 110, 95, 105, 85, 115, 100, 110, 90, 120, 105, 115, 95, 125]
+    'Scheduled_H_Units': [80, 90, 70, 100, 85, 95, 75, 105, 90, 100, 80, 110, 95, 105, 85, 115, 100, 110, 90, 120, 105, 115, 95, 125],
 }
 
 df_schedule = pd.DataFrame(schedule_data)
 
 # Convert 'Month' to datetime
-df_schedule['Month'] = pd.to_datetime(df_schedule['Month'])
+df_schedule['Month'] = pd.to_datetime(df_schedule['Month'], format='%Y-%m')
 
 # Merge the cycle times into the schedule DataFrame
-df_schedule = df_schedule.merge(df_programs[['Program', 'T Cycle Time', 'H Cycle Time']], on='Program', how='left')
+df_schedule = df_schedule.merge(
+    df_programs[['Program', 'T Cycle Time', 'H Cycle Time']],
+    on='Program',
+    how='left'
+)
 
 # Calculate the predicted T and H operational hours
-df_schedule['Predicted_T_Op_Hours'] = (df_schedule['Scheduled_T_Units'] * df_schedule['T Cycle Time']) / 60  # Convert minutes to hours
-df_schedule['Predicted_H_Op_Hours'] = (df_schedule['Scheduled_H_Units'] * df_schedule['H Cycle Time']) / 60  # Convert minutes to hours
+df_schedule['Predicted_T_Op_Hours'] = (
+    df_schedule['Scheduled_T_Units'] * df_schedule['T Cycle Time'] / 60
+)  # Convert minutes to hours
+
+df_schedule['Predicted_H_Op_Hours'] = (
+    df_schedule['Scheduled_H_Units'] * df_schedule['H Cycle Time'] / 60
+)  # Convert minutes to hours
 
 # Sum up the total predicted operational hours per month
 df_monthly = df_schedule.groupby('Month').agg({
@@ -49,15 +56,22 @@ df_monthly = df_schedule.groupby('Month').agg({
 }).reset_index()
 
 # Calculate total predicted operational hours
-df_monthly['Total_Predicted_Op_Hours'] = df_monthly['Predicted_T_Op_Hours'] + df_monthly['Predicted_H_Op_Hours']
+df_monthly['Total_Predicted_Op_Hours'] = (
+    df_monthly['Predicted_T_Op_Hours'] + df_monthly['Predicted_H_Op_Hours']
+)
 
 # Calculate man-loading requirements (number of personnel required)
-df_monthly['Man_Loading_Requirement'] = df_monthly['Total_Predicted_Op_Hours'] / 120  # Assuming 120 hours per person per month
+df_monthly['Man_Loading_Requirement'] = (
+    df_monthly['Total_Predicted_Op_Hours'] / 120
+)  # Assuming 120 hours per person per month
 
 # Prepare data for plotting
-df_melted = df_monthly.melt(id_vars=['Month', 'Man_Loading_Requirement'], 
-                            value_vars=['Predicted_T_Op_Hours', 'Predicted_H_Op_Hours'],
-                            var_name='Operation Type', value_name='Operational Hours')
+df_melted = df_monthly.melt(
+    id_vars=['Month', 'Man_Loading_Requirement'],
+    value_vars=['Predicted_T_Op_Hours', 'Predicted_H_Op_Hours'],
+    var_name='Operation Type',
+    value_name='Operational Hours'
+)
 
 # Map operation types to more readable labels
 df_melted['Operation Type'] = df_melted['Operation Type'].map({
@@ -66,11 +80,12 @@ df_melted['Operation Type'] = df_melted['Operation Type'].map({
 })
 
 # Convert 'Month' to string format for plotting
-df_melted['Month_str'] = df_melted['Month'].dt.strftime('%Y-%m-%d')
-df_monthly['Month_str'] = df_monthly['Month'].dt.strftime('%Y-%m-%d')
+df_melted['Month_str'] = df_melted['Month'].dt.strftime('%Y-%m')
+df_monthly['Month_str'] = df_monthly['Month'].dt.strftime('%Y-%m')
 
 # Define capacity line (assuming maximum capacity is based on available personnel)
-max_capacity = 120 * 10  # For example, 10 personnel available, adjust as needed
+available_personnel = 10  # Adjust based on actual number of personnel
+max_capacity_per_month = available_personnel * 120  # 120 hours per person per month
 
 # Create the visualization
 fig = go.Figure()
@@ -100,7 +115,7 @@ fig.add_trace(go.Scatter(
 # Add a line for capacity
 fig.add_trace(go.Scatter(
     x=df_monthly['Month_str'],
-    y=[max_capacity] * len(df_monthly),
+    y=[max_capacity_per_month] * len(df_monthly),
     mode='lines',
     name='Maximum Capacity',
     line=dict(color='red', width=2),
@@ -132,19 +147,6 @@ fig.update_layout(
         ticktext=df_monthly['Month'].dt.strftime('%b %Y')
     ),
     hovermode='x unified',
-    annotations=[
-        dict(
-            x=df_monthly['Month_str'].iloc[-1],
-            y=max_capacity,
-            xref='x',
-            yref='y',
-            text='Max Capacity',
-            showarrow=True,
-            arrowhead=7,
-            ax=0,
-            ay=-40
-        )
-    ]
 )
 
 # Show the figure
