@@ -1,32 +1,16 @@
-import pandas as pd
+# Group by YEAR, MONTH, and STATUS, and sum the QUANTITY
+df_grouped = df.groupby(['YEAR', 'MONTH', 'STATUS'], as_index=False)['QUANTITY'].sum()
 
-# Example DataFrame
-data = {
-    'YEAR': [2022, 2022, 2022, 2022, 2022, 2022, 2022, 2022, 2022, 2022, 2022, 2022,
-             2023, 2023, 2023, 2023, 2023, 2023, 2023, 2023, 2023, 2023, 2023, 2023],
-    'MONTH': ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D',
-              'J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D']
-}
+# Create the bar plot
+plt.figure(figsize=(12, 6))
+sns.barplot(x='MONTH', y='QUANTITY', hue='STATUS', data=df_grouped, ci=None)
 
-df = pd.DataFrame(data)
+# Customize the plot
+plt.title('Sum of Quantities by Month and Status (2022-2028)')
+plt.xlabel('Month')
+plt.ylabel('Total Quantity')
+plt.xticks(rotation=45)  # Rotate x-axis labels for better readability
 
-# Define the correct month sequence pattern
-correct_month_order = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-
-# Initialize a counter to keep track of the position in the month sequence
-current_position = 0
-
-# Helper function to map the current position to the correct month
-def map_to_correct_month(index):
-    global current_position
-    # Map the current position to the correct month in the sequence
-    correct_month = correct_month_order[current_position % 12]
-    # Increment the position to move to the next month in the sequence
-    current_position += 1
-    return correct_month
-
-# Apply the pattern matching function to assign the correct month
-df['UNIQUE_MONTH'] = df.index.map(map_to_correct_month)
-
-# Display the updated DataFrame
-import ace_tools as tools; tools.display_dataframe_to_user(name="Mapped Month Data", dataframe=df)
+# Display the plot
+plt.tight_layout()
+plt.show()
