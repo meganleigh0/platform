@@ -114,9 +114,9 @@ for filename in os.listdir(folder_path):
             # Open the workbook with parameters to suppress prompts
             wb = app.books.open(
                 filepath,
-                ReadOnly=True,
-                IgnoreReadOnlyRecommended=True,
-                UpdateLinks=False
+                read_only=True,
+                ignore_read_only_recommended=True,
+                update_links=False
             )
         except Exception as e:
             print(f"Error loading workbook {filename}: {e}")
