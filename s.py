@@ -1,6 +1,6 @@
 import os
 import pandas as pd
-import xlwings as xw
+import win32com.client as win32
 
 # Define the folder path where the Excel files are stored
 folder_path = 'DailyStatus'  # Update this path if your folder is named differently
@@ -35,9 +35,16 @@ def process_sheet(sheet, date):
     vehicle_list = []
 
     # Read all data from the sheet into a list of lists
-    values = sheet.used_range.value
+    values = []
+    used_range = sheet.UsedRange
+    for row in used_range:
+        row_values = []
+        for cell in row:
+            cell_value = cell.Value
+            row_values.append(cell_value if cell_value is not None else '')
+        values.append(row_values)
 
-    if values is None:
+    if not values:
         return data_entries  # Skip empty sheets
 
     for row in values:
@@ -102,34 +109,33 @@ def process_sheet(sheet, date):
     return data_entries
 
 # Create an instance of the Excel application
-app = xw.App(visible=False)
-# Suppress Excel alerts
-app.display_alerts = False
-app.screen_updating = False
+excel = win32.Dispatch('Excel.Application')
+excel.Visible = False
+excel.DisplayAlerts = False
 
 for filename in os.listdir(folder_path):
     if filename.endswith('.xlsx'):
         filepath = os.path.join(folder_path, filename)
         try:
             # Open the workbook with parameters to suppress prompts
-            wb = app.books.open(
+            wb = excel.Workbooks.Open(
                 filepath,
-                read_only=True,
-                ignore_read_only_recommended=True,
-                update_links=False
+                ReadOnly=True,
+                IgnoreReadOnlyRecommended=True,
+                UpdateLinks=0
             )
         except Exception as e:
             print(f"Error loading workbook {filename}: {e}")
             continue
-        for sheet in wb.sheets:
-            date = sheet.name  # Assuming sheet name is the date
+        for sheet in wb.Sheets:
+            date = sheet.Name  # Assuming sheet name is the date
             try:
                 data.extend(process_sheet(sheet, date))
             except Exception as e:
-                print(f"Error processing sheet {sheet.name} in workbook {filename}: {e}")
+                print(f"Error processing sheet {sheet.Name} in workbook {filename}: {e}")
                 continue
-        wb.close()
-app.quit()
+        wb.Close(SaveChanges=False)
+excel.Quit()
 
 # Convert the data list into a DataFrame
 df = pd.DataFrame(data)
