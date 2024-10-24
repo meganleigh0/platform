@@ -56,7 +56,7 @@ def process_sheet(sheet, date):
             continue
 
         # Identify summary table headers
-        if set(summary_headers).issubset(set([cell.strip() for cell in row])):
+        if set([header.upper() for header in summary_headers]).issubset(set(row_upper)):
             collecting_summary = True
             summary_data = []
             continue
@@ -92,7 +92,11 @@ def process_sheet(sheet, date):
 for filename in os.listdir(folder_path):
     if filename.endswith('.xlsx'):
         filepath = os.path.join(folder_path, filename)
-        wb = load_workbook(filepath, data_only=True)
+        try:
+            wb = load_workbook(filepath, data_only=True, read_only=True, keep_vba=False, keep_links=False)
+        except Exception as e:
+            print(f"Error loading workbook {filename}: {e}")
+            continue
         for sheetname in wb.sheetnames:
             sheet = wb[sheetname]
             date = sheetname  # Assuming sheet name is the date
@@ -100,3 +104,6 @@ for filename in os.listdir(folder_path):
 
 # Convert the data list into a DataFrame
 df = pd.DataFrame(data)
+
+# Optional: Save the DataFrame to a CSV file for verification
+df.to_csv('consolidated_data.csv', index=False)
