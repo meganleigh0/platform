@@ -1,24 +1,22 @@
 
+# Define the correct order for months
+month_order = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
-import pandas as pd
-import plotly.express as px
+# Convert the MONTH column to a categorical type with the correct order
+df['MONTH'] = pd.Categorical(df['MONTH'], categories=month_order, ordered=True)
 
-# Example DataFrame (adjust with your actual data)
-data = {
-    'YEAR': [2022, 2022, 2022, 2022, 2023, 2023, 2023, 2023],
-    'MONTH': ['Jan', 'Feb', 'Mar', 'Apr', 'Jan', 'Feb', 'Mar', 'Apr'],
-    'QUANTITY': [100, 150, 120, 130, 200, 250, 220, 230],
-    'STATUS': ['Active', 'Inactive', 'Active', 'Active', 'Inactive', 'Active', 'Inactive', 'Inactive']
-}
+# Group by YEAR, MONTH, STATUS, FAMILY, and sum the QUANTITY
+df_grouped = df.groupby(['YEAR', 'MONTH', 'STATUS', 'FAMILY'], as_index=False)['QUANTITY'].sum()
 
-df = pd.DataFrame(data)
-
-# Group by YEAR, MONTH, and STATUS, and sum the QUANTITY
-df_grouped = df.groupby(['YEAR', 'MONTH', 'STATUS'], as_index=False)['QUANTITY'].sum()
-
-# Create the bar plot using Plotly
-fig = px.bar(df_grouped, x='MONTH', y='QUANTITY', color='STATUS', barmode='stack',
-             facet_col='YEAR', title="Sum of Quantities by Month and Status")
+# Create the bar plot using Plotly, now colored by 'FAMILY' and sorted by MONTH
+fig = px.bar(df_grouped, 
+             x='MONTH', 
+             y='QUANTITY', 
+             color='FAMILY',  # Color by family
+             barmode='stack', 
+             facet_col='YEAR', 
+             title="Sum of Quantities by Month, Family, and Status",
+             hover_data=['STATUS'])  # Show status on hover
 
 # Display the plot
 fig.show()
