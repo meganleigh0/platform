@@ -1,3 +1,17 @@
-key lesson I’ve learned throughout my academic and professional journey is that I don’t know everything—and that’s okay. I approach every situation with humility, understanding that real-world challenges often go beyond what’s taught in the classroom. In meetings or collaborative settings, I never position myself as having all the answers. Instead, I rely on the information and experience I’ve gained to suggest ideas or approaches that could be valuable. My focus is always on contributing meaningfully, offering data-driven insights, and collaborating with others to find the best solutions.
+import pandas as pd
 
-Through hands-on projects like a cloud migration proposal and an affinity wall for external clients, I’ve reinforced my belief that data science is a collaborative, problem-solving discipline. I continue to learn with each experience, remaining open to feedback and focused on delivering impactful, practic
+# Load the Excel file
+
+
+# Rename the "Unnamed" columns properly if possible
+df.columns = [col if not col.startswith("Unnamed") else f"Unnamed_{i}" for i, col in enumerate(df.columns)]
+
+# Assuming 'Program' is correctly loaded, you can filter the columns for the ones representing months/quarters
+# Example: filter all columns that represent quantities for Q1, Q2, etc.
+quantity_columns = [col for col in df.columns if 'Q' in str(col) or '2015' in str(col)]
+
+# Displaying the Program and its corresponding quantities
+df_program_quantities = df[['Program'] + quantity_columns]
+
+# View the first few rows to ensure it's correct
+df_program_quantities.head()
