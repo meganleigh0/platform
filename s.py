@@ -1,16 +1,23 @@
 import pandas as pd
 
-# Hard-coded data based on the image
-data = {
-    'Month': ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'],
-    'Working Days': [20, 19, 23, 20, 22, 21, 20, 23, 20, 21, 20, 20],
-    'Weekends': [9, 8, 8, 10, 8, 8, 8, 8, 9, 9, 8, 10],
-    'Holidays': [2, 1, 0, 0, 1, 1, 1, 0, 1, 1, 2, 1],
-    'Total': [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
-}
+# Define the common parameters for each station
+stations = [
+    {'name': 'Turret Station 0', 'range': (124, 128)},
+    {'name': 'Turret Station 1', 'range': (124, 128)},
+    {'name': 'Turret Station 2/3/4', 'range': (124, 128)},
+    # Add more stations here...
+]
 
-# Create a DataFrame from the dictionary
-df = pd.DataFrame(data)
+daily_dfs = []
+for station in stations:
+    st = test.parse(test.sheet_names[0], header=None).loc[station['range'][0]:station['range'][1], 0:6]
+    st['Station'] = station['name']
+    st['Date'] = test.sheet_names[0].split('Abrams ')[1].replace(' ', '').replace('.', '/')
+    st.rename(columns={0: 'Contract', 2: 'MRP', 4: 'Actual', 5: 'Delta', 6: 'Flow'}, inplace=True)
+    st.dropna(how='all', axis=1, inplace=True)
+    st.drop(st.index[0], axis=0, inplace=True)
+    daily_dfs.append(st)
 
-# Display the DataFrame
-import ace_tools as tools; tools
+# Concatenate all station dataframes into one
+daily_df = pd.concat(daily_dfs)
+daily_df
