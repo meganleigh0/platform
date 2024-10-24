@@ -1,6 +1,6 @@
 import pandas as pd
 
-# Example DataFrame (replace with your actual data)
+# Example DataFrame
 data = {
     'YEAR': [2022, 2022, 2022, 2022, 2022, 2022, 2022, 2022, 2022, 2022, 2022, 2022,
              2023, 2023, 2023, 2023, 2023, 2023, 2023, 2023, 2023, 2023, 2023, 2023],
@@ -10,40 +10,23 @@ data = {
 
 df = pd.DataFrame(data)
 
-# Define the full list of months in the correct order
-month_order = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+# Define the correct month sequence pattern
+correct_month_order = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
-# Track which months have been assigned
-assigned_months = []
+# Initialize a counter to keep track of the position in the month sequence
+current_position = 0
 
-# Helper function to assign the correct month based on the order in the data
-def assign_month(month_abbreviation):
-    # Check if the abbreviation is 'J', 'M', or 'A' which can represent multiple months
-    if month_abbreviation == 'J':
-        # Assign either January or July based on what has already been assigned
-        return 'Jan' if 'Jan' not in assigned_months else 'Jul'
-    elif month_abbreviation == 'M':
-        # Assign either March or May based on what has already been assigned
-        return 'Mar' if 'Mar' not in assigned_months else 'May'
-    elif month_abbreviation == 'A':
-        # Assign either April or August based on what has already been assigned
-        return 'Apr' if 'Apr' not in assigned_months else 'Aug'
-    else:
-        # For other abbreviations, use the month map
-        month_map = {
-            'F': 'Feb',
-            'S': 'Sep',
-            'O': 'Oct',
-            'N': 'Nov',
-            'D': 'Dec'
-        }
-        return month_map[month_abbreviation]
+# Helper function to map the current position to the correct month
+def map_to_correct_month(index):
+    global current_position
+    # Map the current position to the correct month in the sequence
+    correct_month = correct_month_order[current_position % 12]
+    # Increment the position to move to the next month in the sequence
+    current_position += 1
+    return correct_month
 
-# Apply the month assignment logic to the DataFrame
-df['UNIQUE_MONTH'] = df['MONTH'].apply(assign_month)
-
-# Ensure that the month is added to the assigned_months list after assignment
-df['UNIQUE_MONTH'].apply(lambda x: assigned_months.append(x))
+# Apply the pattern matching function to assign the correct month
+df['UNIQUE_MONTH'] = df.index.map(map_to_correct_month)
 
 # Display the updated DataFrame
-import ace_tools as tools; tools.display_dataframe_to_user(name="Updated Month Data", dataframe=df)
+import ace_tools as tools; tools.display_dataframe_to_user(name="Mapped Month Data", dataframe=df)
