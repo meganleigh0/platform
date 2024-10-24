@@ -3,7 +3,7 @@ import pandas as pd
 import win32com.client as win32
 
 # Define the folder path where the Excel files are stored
-folder_path = 'DailyStatus'  # Update this path if your folder is named differently
+folder_path = 'assets/DailyStatus'  # Update this path to match your directory structure
 
 # Initialize an empty list to store the data
 data = []
@@ -116,10 +116,11 @@ excel.DisplayAlerts = False
 for filename in os.listdir(folder_path):
     if filename.endswith('.xlsx'):
         filepath = os.path.join(folder_path, filename)
+        print(f"Processing file: {filepath}")
         try:
             # Open the workbook with parameters to suppress prompts
             wb = excel.Workbooks.Open(
-                filepath,
+                os.path.abspath(filepath),
                 ReadOnly=True,
                 IgnoreReadOnlyRecommended=True,
                 UpdateLinks=0
