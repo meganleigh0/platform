@@ -1,24 +1,19 @@
-# Step 1: Forward Fill the Year Column
-df['Year'] = df['Year'].fillna(method='ffill')
+import pandas as pd
 
-# Step 2: Map Months to Full Names
-month_mapping = {
-    'J': 'January',
-    'F': 'February',
-    'M': 'March',
-    'A': 'April',
-    'M': 'May',
-    'J': 'June',
-    'J': 'July',
-    'A': 'August',
-    'S': 'September',
-    'O': 'October',
-    'N': 'November',
-    'D': 'December'
+# Sample dataframe creation (replace this with your actual dataframe)
+data = {
+    'Code': ['A1', 'A2', 'A3', 'A4'],
+    'Year': [2021, 2021, 2022, 2022],
+    'Month': ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D']  # Adjust your actual month columns here
 }
 
-# Apply the month mapping
-df['Month'] = df['Month'].map(month_mapping)
+df = pd.DataFrame(data)
 
-# Display the DataFrame
+# Define the correct month mapping based on position
+months_full = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+
+# Group by 'Year' or handle year-wise, assuming 12 month values for each year
+df['Month_full'] = df.groupby('Year').apply(lambda x: months_full[:len(x)]).explode().reset_index(drop=True)
+
+# This will now map the month letters to their full names in order for each year
 print(df)
