@@ -1,22 +1,16 @@
+import pandas as pd
 
-# Define the correct order for months
-month_order = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+# Hard-coded data based on the image
+data = {
+    'Month': ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'],
+    'Working Days': [20, 19, 23, 20, 22, 21, 20, 23, 20, 21, 20, 20],
+    'Weekends': [9, 8, 8, 10, 8, 8, 8, 8, 9, 9, 8, 10],
+    'Holidays': [2, 1, 0, 0, 1, 1, 1, 0, 1, 1, 2, 1],
+    'Total': [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+}
 
-# Convert the MONTH column to a categorical type with the correct order
-df['MONTH'] = pd.Categorical(df['MONTH'], categories=month_order, ordered=True)
+# Create a DataFrame from the dictionary
+df = pd.DataFrame(data)
 
-# Group by YEAR, MONTH, STATUS, FAMILY, and sum the QUANTITY
-df_grouped = df.groupby(['YEAR', 'MONTH', 'STATUS', 'FAMILY'], as_index=False)['QUANTITY'].sum()
-
-# Create the bar plot using Plotly, now colored by 'FAMILY' and sorted by MONTH
-fig = px.bar(df_grouped, 
-             x='MONTH', 
-             y='QUANTITY', 
-             color='FAMILY',  # Color by family
-             barmode='stack', 
-             facet_col='YEAR', 
-             title="Sum of Quantities by Month, Family, and Status",
-             hover_data=['STATUS'])  # Show status on hover
-
-# Display the plot
-fig.show()
+# Display the DataFrame
+import ace_tools as tools; tools
