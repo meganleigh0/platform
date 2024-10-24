@@ -1,116 +1,102 @@
-import openpyxl
-import pandas as pd
 import os
+import pandas as pd
+from openpyxl import load_workbook
 
-# Function to load and parse data from an Excel workbook for each sheet (each day)
-def load_workbook_data(file_path):
-    wb = openpyxl.load_workbook(file_path, data_only=True)
-    all_data = []
+folder_path = 'DailyStatus'
+data = []
 
-    # Loop through each sheet (each day)
-    for sheet_name in wb.sheetnames:
-        ws = wb[sheet_name]
-        # Extract data for Plant 1, Plant 3, and TNA
-        sheet_data = extract_plant_data(ws, sheet_name)
-        if sheet_data is not None:
-            all_data.append(sheet_data)
+# Define possible plants, sections, and stations
+plants = ['Plant 1', 'Plant 3', 'T&A', 'TNA', 'Test and Accept']
+sections = {
+    'P1 Turrets': ['Machining', 'Armor Install', 'Appurtenance', 'Paint'],
+    'P1 Hull': ['Armor', 'Structure', 'Appurtenance', 'Paint'],
+    'P3 Turrets': ['Station 0', 'Station 1', 'Stations 2-3-4', 'Stations 5-6'],
+    'P3 Hull': ['Station 0', 'Station 1', 'Stations 2-3-4', 'Stations 5-6'],
+    'T&A': ['Test and Accept', 'Final Paint', 'Prep and Ship'],
+    'TNA': ['Test and Accept', 'Final Paint', 'Prep and Ship']
+}
 
-    # Combine all data for the workbook into one DataFrame
-    return pd.concat(all_data, ignore_index=True) if all_data else pd.DataFrame()
+# Flatten lists of sections and stations
+all_sections = list(sections.keys())
+all_stations = [station for stations in sections.values() for station in stations]
 
-# Function to extract data from Plant 1, Plant 3, and TNA sections in a sheet
-def extract_plant_data(ws, sheet_name):
-    sections = ["P1 Turrets", "P1 Hall", "P3 Turrets", "P3 Hall", "TNA"]
-
-    data_list = []
-    # Example station names
-    plant1_turret_stations = ["Machining", "Armor Install", "Appurtenance", "Paint"]
-    plant1_hall_stations = ["Armor", "Structure", "Appurtenance", "Paint"]
-    plant3_stations = ["Station 0", "Station 1", "Stations 2-3-4", "Stations 5-6", "Stations 7-8"]
-    tna_stations = ["Test and Accept", "Final Paint", "Prep and Chips"]
-
-    # Parse each plant's section based on key phrases and extract summary tables and vehicles
-    plant1_data = parse_plant_section(ws, "P1 Turrets", plant1_turret_stations, sheet_name)
-    plant1_data += parse_plant_section(ws, "P1 Hall", plant1_hall_stations, sheet_name)
-
-    plant3_data = parse_plant_section(ws, "P3 Turrets", plant3_stations, sheet_name)
-    plant3_data += parse_plant_section(ws, "P3 Hall", plant3_stations, sheet_name)
-
-    tna_data = parse_plant_section(ws, "TNA", tna_stations, sheet_name)
-
-    # Combine all plant data
-    return pd.concat(plant1_data + plant3_data + tna_data, ignore_index=True) if plant1_data or plant3_data or tna_data else None
-
-# Function to parse individual sections of each plant
-def parse_plant_section(ws, section_name, stations, sheet_name):
-    section_data = []
-    for station in stations:
-        start_row = None
-        for row in ws.iter_rows(min_row=1, max_row=ws.max_row):
-            if any(station in str(cell.value) for cell in row):
-                start_row = row[0].row
-                break
-
-        if start_row:
-            # Extract summary table and vehicles data for the station
-            summary_data, vehicle_data = extract_summary_and_vehicle_data(ws, start_row)
-            # Add Station, Section, and Date information
-            summary_data['Station'] = station
-            summary_data['Section'] = section_name
-            summary_data['Date'] = sheet_name
-            vehicle_data['Station'] = station
-            vehicle_data['Section'] = section_name
-            vehicle_data['Date'] = sheet_name
-
-            # Append the summary and vehicle data
-            section_data.append(summary_data)
-            section_data.append(vehicle_data)
-
-    return section_data
-
-# Function to extract the summary table and vehicle data for a station
-def extract_summary_and_vehicle_data(ws, start_row):
+def process_sheet(sheet, date):
+    data_entries = []
+    current_plant = None
+    current_section = None
+    current_station = None
+    collecting_summary = False
+    collecting_vehicles = False
+    summary_headers = ['Contract', 'MRP', 'Actual', 'Delta', 'Flow']
     summary_data = []
-    vehicle_data = []
-    collecting_summary = True
-    current_data = []
+    vehicle_list = []
 
-    for row in ws.iter_rows(min_row=start_row + 1, max_row=ws.max_row, values_only=True):
+    for row in sheet.iter_rows(values_only=True):
+        row = [cell if cell is not None else '' for cell in row]
+        row_upper = [str(cell).strip().upper() for cell in row]
+
+        # Identify plant
+        if any(plant.upper() in row_upper for plant in plants):
+            current_plant = next(plant for plant in plants if plant.upper() in row_upper)
+            current_section = current_station = None
+            collecting_summary = collecting_vehicles = False
+            continue
+
+        # Identify section
+        if any(section.upper() in row_upper for section in all_sections):
+            current_section = next(section for section in all_sections if section.upper() in row_upper)
+            current_station = None
+            collecting_summary = collecting_vehicles = False
+            continue
+
+        # Identify station
+        if any(station.upper() in row_upper for station in all_stations):
+            current_station = next(station for station in all_stations if station.upper() in row_upper)
+            collecting_summary = collecting_vehicles = False
+            continue
+
+        # Identify summary table headers
+        if set(summary_headers).issubset(set([cell.strip() for cell in row])):
+            collecting_summary = True
+            summary_data = []
+            continue
+
+        # Collect summary table data
         if collecting_summary:
-            if any(row):  # If row has content, it's part of the summary table
-                current_data.append(row)
+            if any(row):
+                summary_row = dict(zip(summary_headers, row))
+                summary_data.append(summary_row)
             else:
-                # If row is empty, we switch to vehicle data
                 collecting_summary = False
-                summary_data = pd.DataFrame(current_data, columns=['Contract', 'MRP', 'Actual', 'Delta', 'Flow'])
-                current_data = []
-        else:
-            # Collect vehicle data (will stop on encountering "M days" or "Planned WIP")
-            if "M days" in str(row) or "Planned WIP" in str(row):
-                break  # End of the vehicle list
-            current_data.append(row)
+                collecting_vehicles = True
+            continue
 
-    vehicle_data = pd.DataFrame(current_data, columns=['Vehicles']) if current_data else pd.DataFrame()
-    return summary_data, vehicle_data
+        # Collect vehicle list
+        if collecting_vehicles:
+            cell_value = str(row[0]).strip()
+            if cell_value in ['M days', 'Planned WIP', '']:
+                collecting_vehicles = False
+                data_entries.append({
+                    'Plant': current_plant,
+                    'Section': current_section,
+                    'Station': current_station,
+                    'Summary Table': summary_data,
+                    'Vehicle List': vehicle_list,
+                    'Date': date
+                })
+                vehicle_list = []
+            else:
+                vehicle_list.append(cell_value)
+    return data_entries
 
-# Function to load all workbooks in the "DailyStatus" folder
-def load_all_workbooks(directory_path):
-    all_data = []
+for filename in os.listdir(folder_path):
+    if filename.endswith('.xlsx'):
+        filepath = os.path.join(folder_path, filename)
+        wb = load_workbook(filepath, data_only=True)
+        for sheetname in wb.sheetnames:
+            sheet = wb[sheetname]
+            date = sheetname  # Assuming sheet name is the date
+            data.extend(process_sheet(sheet, date))
 
-    # Loop through each workbook (e.g., DailyStatusArchivesAPR2024, DailyStatusArchivesFEB2024)
-    for file_name in os.listdir(directory_path):
-        if file_name.endswith('.xlsx'):
-            file_path = os.path.join(directory_path, file_name)
-            workbook_data = load_workbook_data(file_path)
-            if not workbook_data.empty:
-                all_data.append(workbook_data)
-
-    # Combine all data from all workbooks into one DataFrame
-    return pd.concat(all_data, ignore_index=True) if all_data else pd.DataFrame()
-
-# Example usage
-directory = "DailyStatus"  # Folder containing your daily status files
-final_data = load_all_workbooks(directory)
-
-# Display the final aggregated data
-print(final_data)
+# Convert the data list into a DataFrame
+df = pd.DataFrame(data)
