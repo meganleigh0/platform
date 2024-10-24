@@ -1,51 +1,55 @@
+import openpyxl
+import pandas as pd
 
-# Initialize a list to collect data from each station
-daily_dfs = []
+# Load the workbook
+wb = openpyxl.load_workbook('assets/DailyStatusArchivesAug2024.xlsx', data_only=True)
 
-# Define a function to search for specific terms (like 'MRP', 'Actual') and extract rows accordingly
-def extract_station_data(sheet_name, header_labels, station_name):
-    # Parse the sheet
-    df = daily_status.parse(sheet_name, header=None)
+# Function to find rows where specific keywords appear
+def find_row(ws, keyword):
+    for row in ws.iter_rows():
+        for cell in row:
+            if cell.value and keyword in str(cell.value):
+                return cell.row
+    return None
+
+# Function to extract tables based on the header row found
+def extract_table(ws, start_row, columns):
+    data = []
+    for row in ws.iter_rows(min_row=start_row+1, values_only=True):
+        # Stop when the first empty row is encountered
+        if all([cell is None for cell in row]):
+            break
+        data.append(row)
     
-    # Find the first occurrence of the header labels to determine where the data starts
-    header_row = df[df.apply(lambda row: row.astype(str).str.contains('|'.join(header_labels)).any(), axis=1)].index[0]
+    df = pd.DataFrame(data, columns=columns)
+    return df
+
+# Create an empty list to store all tables
+all_tables = []
+
+# Iterate over each sheet in the workbook
+for sheet_name in wb.sheetnames:
+    ws = wb[sheet_name]
     
-    # Extract data starting from that row
-    station_data = df.loc[header_row:, :]
+    # Find the row that contains the 'Station' identifier
+    station_row = find_row(ws, 'Station')
     
-    # Clean up the station_data
-    station_data.columns = station_data.iloc[0]  # Set headers
-    station_data = station_data.drop(station_data.index[0])  # Drop the header row
-    
-    # Add a Station and Date column
-    station_data['Station'] = station_name
-    station_data['Date'] = pd.to_datetime(sheet_name.split('Abrams ')[1].replace(' ', '').replace('.', '/'))
-    
-    return station_data
+    if station_row:
+        # Assume headers are in the row after 'Station' keyword
+        headers = ['Contract', 'MRP', 'Actual', 'Delta', 'Flow']
+        
+        # Extract data starting from this row
+        station_df = extract_table(ws, station_row, headers)
+        
+        # Add a column to identify the station and date
+        station_df['Station'] = sheet_name  # This will be the sheet name
+        station_df['Date'] = ws.cell(row=station_row, column=2).value  # Adjust based on date location
 
-# Define your stations and the labels to search for in the sheet
-stations = [
-    {'name': 'Turret Station 0', 'sheet_index': 0},
-    {'name': 'Turret Station 1', 'sheet_index': 1},
-    {'name': 'Turret Station 2/3/4', 'sheet_index': 2},
-    # Add more stations as needed...
-]
+        # Append to the list of all tables
+        all_tables.append(station_df)
 
-header_labels = ['MRP', 'Actual', 'Delta', 'Flow']
+# Concatenate all station dataframes
+full_df = pd.concat(all_tables, ignore_index=True)
 
-# Loop over the stations and extract their data
-for station in stations:
-    sheet_name = daily_status.sheet_names[station['sheet_index']]
-    daily_dfs.append(extract_station_data(sheet_name, header_labels, station['name']))
-
-# Concatenate all data
-daily_df = pd.concat(daily_dfs, ignore_index=True)
-print(daily_df)
-
-# Clean NaN values in important columns
-daily_df.dropna(subset=['MRP', 'Actual', 'Delta', 'Flow'], inplace=True)
-
-# You can also fill NaNs if the data is consistent but incomplete
-daily_df.fillna(method='ffill', inplace=True)  # Forward fill for missing values
-
-# You can also apply custom transformations to correct any specific inconsistencies
+# Display the final dataframe
+print(full_df)
