@@ -1,30 +1,29 @@
 import pandas as pd
 
-# Load the Excel file with the first row being years and second row being months
+# Load the Excel file with multi-level header
 file_path = "path_to_your_excel_file.xlsx"
-df = pd.read_excel(file_path, header=[0, 1])  # Header has two levels for years and months
+df = pd.read_excel(file_path, header=[0, 1])  # Multi-level header for Year/Month
 
-# Step 1: Extract the Family and Program information
-# Assume column 0 contains both Family (uppercase, no numbers) and Programs (non-uppercase or containing numbers)
-df['Family'] = df.iloc[:, 0].where(df.iloc[:, 0].str.isupper() & df.iloc[:, 0].str.contains(r'^\D+$'), None)
-df['Family'].ffill(inplace=True)  # Fill down the family names
-df['Program'] = df.iloc[:, 0].where(~df.iloc[:, 0].str.isupper() & df.iloc[:, 0].str.contains(r'^\D+$'), None)
+# Step 1: Identify the rows where Status and other columns have zero or blank (indicating a Family row)
+# Assuming columns like 'Status', 'Group Code', etc. are used for families and filled with '0' for families
+df['Is_Family'] = df['Status'].apply(lambda x: x == 0) & df['Group Code'].apply(lambda x: x == 0)
 
-# Step 2: Remove rows that are Family names since they are captured in the 'Family' column
-df_programs = df.dropna(subset=['Program']).copy()
+# Step 2: Fill down the Family values into a new 'Family' column
+df['Family'] = df.loc[df['Is_Family'], df.columns[0]]  # Capture the first column (family names)
+df['Family'].ffill(inplace=True)  # Fill down the Family names
 
-# Step 3: Reshape the month/year columns into a long format
-# We're going to melt the dataframe to have one row per Year/Month/Qty
-df_melted = df_programs.melt(
-    id_vars=['Family', 'Program', 'Status', 'Group Code', 'Data Source'],  # Adjust these as needed
-    var_name=['Year', 'Month'],  # Handle the multi-level column headers
+# Step 3: Remove the Family rows themselves since they've been captured and propagated
+df_filtered = df[~df['Is_Family']].copy()
+
+# Step 4: Separate Programs from Families in the same column (Program column will be same as Family column)
+df_filtered['Program'] = df_filtered[df_filtered.columns[0]]  # Assuming column 0 contains Program names
+
+# Step 5: Reshape the month/year columns into a long format
+df_melted = df_filtered.melt(
+    id_vars=['Family', 'Program', 'Status', 'Group Code', 'Data Source'],  # Adjust based on your columns
+    var_name=['Year', 'Month'],  # Use the multi-level header
     value_name='Quantity'
 )
 
-# Step 4: Clean up the 'Month' column if necessary (e.g., J, F, M can be mapped to full names)
-month_mapping = {'J': 'January', 'F': 'February', 'M': 'March', 'A': 'April', 'M': 'May', 'J': 'June',
-                 'J': 'July', 'A': 'August', 'S': 'September', 'O': 'October', 'N': 'November', 'D': 'December'}
-df_melted['Month'] = df_melted['Month'].map(month_mapping)
-
-# Step 5: Output the cleaned dataframe
+# Step 6: Output the cleaned dataframe
 print(df_melted.head())
