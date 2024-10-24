@@ -1,51 +1,26 @@
 import pandas as pd
 
-# Step 1: Load the Excel file without any headers
-file_path = "path_to_your_excel_file.xlsx"  # Replace with actual path
-df = pd.read_excel(file_path, header=None)  # No header
+# Load the dataframe (assuming it's already loaded in your case)
+# df = pd.read_excel('your_file.xlsx')  # Uncomment this if you're loading from an Excel file
 
-# Step 2: Verify the number of columns
-print(f"Number of columns in the dataframe: {df.shape[1]}")  # This prints how many columns are in the dataframe
+# Step 1: Remove initial blank rows
+df_clean = df.dropna(how='all').reset_index(drop=True)
 
-# Step 3: Manually assign column names
-# Assuming the first two rows are year and month, followed by the data
-year_row = df.iloc[0]
-month_row = df.iloc[1]
+# Step 2: Set the correct header row
+# Assuming row 0 has the program/family, and row 1 has year information with months below it
+new_columns = df_clean.iloc[1].fillna('') + '_' + df_clean.iloc[2].fillna('')
+new_columns = new_columns.str.strip('_')  # Clean up any extra underscores from empty cells
 
-# Verify if year_row and month_row match the actual number of columns in the data
-print(f"Length of year_row: {len(year_row)}, Length of month_row: {len(month_row)}")
+# Step 3: Assign the new column names and drop the old header rows
+df_clean.columns = new_columns
+df_clean = df_clean.drop([0, 1, 2])
 
-# If they match the number of columns, proceed to assign column names
-columns = ['Program', 'Status', 'Group Code', 'Data Source'] + [f'{year}_{month}' for year, month in zip(year_row[4:], month_row[4:])]
-print(f"Columns being assigned: {len(columns)}")
+# Step 4: Clean up remaining blank columns or unnecessary columns if needed
+df_clean = df_clean.dropna(axis=1, how='all')  # Drop any fully blank columns
+df_clean = df_clean.reset_index(drop=True)
 
-# Step 4: Assign columns
-df.columns = columns  # Assign the newly created column names
+# Step 5: (Optional) Clean up and format remaining data as needed
+# For example, you may want to split the program/family information into separate columns
 
-# Step 5: Remove the first two rows (year and month rows)
-df = df.drop([0, 1]).reset_index(drop=True)
-
-# Step 6: Identify Family rows (all caps, no numbers)
-df['Is_Family'] = df['Program'].apply(lambda x: x.isupper() and not any(char.isdigit() for char in x))
-
-# Step 7: Fill down Family names
-df['Family'] = df.loc[df['Is_Family'], 'Program']
-df['Family'].ffill(inplace=True)
-
-# Step 8: Filter out the Family rows from the data
-df_filtered = df[~df['Is_Family']].copy()
-
-# Step 9: Reshape the month/year columns into a long format
-month_columns = columns[4:]  # All columns after 'Data Source'
-df_melted = df_filtered.melt(
-    id_vars=['Family', 'Program', 'Status', 'Group Code', 'Data Source'],
-    value_vars=month_columns,
-    var_name='Year_Month',
-    value_name='Quantity'
-)
-
-# Step 10: Split the 'Year_Month' into separate 'Year' and 'Month' columns
-df_melted[['Year', 'Month']] = df_melted['Year_Month'].str.split('_', expand=True)
-
-# Step 11: Output the cleaned dataframe
-print(df_melted.head())
+# Display the cleaned dataframe
+df_clean.head()
