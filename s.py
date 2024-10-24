@@ -1,26 +1,38 @@
 import pandas as pd
+from openpyxl import load_workbook
 
-# Load the dataframe (assuming it's already loaded in your case)
-# df = pd.read_excel('your_file.xlsx')  # Uncomment this if you're loading from an Excel file
+# Load the Excel workbook and select the sheet
+file_path = 'your_file.xlsx'
+wb = load_workbook(file_path)
+sheet = wb.active  # Assuming the first sheet is the one you want
 
-# Step 1: Remove initial blank rows
-df_clean = df.dropna(how='all').reset_index(drop=True)
+# Extract the years and months
+years = [cell.value for cell in sheet[1]]  # First row for years
+months = [cell.value for cell in sheet[2]]  # Second row for months
 
-# Step 2: Set the correct header row
-# Assuming row 0 has the program/family, and row 1 has year information with months below it
-new_columns = df_clean.iloc[1].fillna('') + '_' + df_clean.iloc[2].fillna('')
-new_columns = new_columns.str.strip('_')  # Clean up any extra underscores from empty cells
+# List to store the final records
+records = []
 
-# Step 3: Assign the new column names and drop the old header rows
-df_clean.columns = new_columns
-df_clean = df_clean.drop([0, 1, 2])
+# Iterate over the rows starting from the third row (where the programs and quantities are)
+for row in sheet.iter_rows(min_row=3, values_only=True):
+    program = row[0]  # Assuming Column A contains the program name
+    
+    if program:  # Skip empty rows in Column A
+        for col_idx, quantity in enumerate(row[1:], start=1):  # Iterate over the remaining columns
+            year = years[col_idx]
+            month = months[col_idx]
+            
+            # If both year and month are available and the quantity is not None, create a record
+            if year and month and quantity is not None:
+                records.append({
+                    'Program': program,
+                    'Quantity': quantity,
+                    'Year': year,
+                    'Month': month
+                })
 
-# Step 4: Clean up remaining blank columns or unnecessary columns if needed
-df_clean = df_clean.dropna(axis=1, how='all')  # Drop any fully blank columns
-df_clean = df_clean.reset_index(drop=True)
+# Convert the records into a pandas DataFrame
+df = pd.DataFrame(records)
 
-# Step 5: (Optional) Clean up and format remaining data as needed
-# For example, you may want to split the program/family information into separate columns
-
-# Display the cleaned dataframe
-df_clean.head()
+# Show the resulting DataFrame
+print(df)
