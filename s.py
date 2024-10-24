@@ -6,27 +6,30 @@ file_path = '/mnt/data/your_file.xlsx'
 wb = load_workbook(file_path)
 sheet = wb.active  # Assuming the data is in the first sheet
 
-# Extract years and months
-years = [cell.value for cell in sheet[1][4:]]  # Years start from column E (index 4)
-months = [cell.value for cell in sheet[2][4:]]  # Months are in the second row, starting from column E
+# Extract years and months starting from column E (which is index 4)
+years = [cell.value for cell in sheet[1][4:]]  # First row for years
+months = [cell.value for cell in sheet[2][4:]]  # Second row for months
 
-# List to hold the final records
+# List to store the final records
 records = []
 
-# Iterate over the rows, starting from the third row (where the program details and quantities start)
-for row in sheet.iter_rows(min_row=4, values_only=True):
-    program = row[0]  # Program name from column A
-    status = row[1]   # Status from column B
-    group_code = row[2]  # Group Code from column C
-    data_source = row[3]  # Data Source from column D
+# Iterate over the rows starting from the fourth row (where the program details and quantities start)
+for row in sheet.iter_rows(min_row=4):
+    program = row[0].value  # Program name from column A
+    status = row[1].value   # Status from column B
+    group_code = row[2].value  # Group Code from column C
+    data_source = row[3].value  # Data Source from column D
     
-    if program:  # Skip empty rows where there is no program
-        for col_idx, quantity in enumerate(row[4:], start=4):  # Start from column E (index 4)
+    # Skip rows where there is no program name
+    if program:
+        # Iterate over the remaining columns starting from column E (index 4) for quantities
+        for col_idx, cell in enumerate(row[4:], start=4):
+            quantity = cell.value
             year = years[col_idx - 4]
             month = months[col_idx - 4]
             
-            # If quantity is not None, create a record
-            if quantity is not None:
+            # Create a record if the quantity is not None
+            if year and month and quantity is not None:
                 records.append({
                     'Program': program,
                     'Status': status,
@@ -37,7 +40,7 @@ for row in sheet.iter_rows(min_row=4, values_only=True):
                     'Quantity': quantity
                 })
 
-# Convert the list of records into a DataFrame
+# Convert the list of records into a pandas DataFrame
 df = pd.DataFrame(records)
 
 # Display the DataFrame
