@@ -1,6 +1,6 @@
 import pandas as pd
 
-# Example DataFrame
+# Example DataFrame (replace with your actual data)
 data = {
     'YEAR': [2022, 2022, 2022, 2022, 2022, 2022, 2022, 2022, 2022, 2022, 2022, 2022,
              2023, 2023, 2023, 2023, 2023, 2023, 2023, 2023, 2023, 2023, 2023, 2023],
@@ -17,7 +17,7 @@ month_order = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'O
 assigned_months = []
 
 # Helper function to assign the correct month based on the order in the data
-def assign_month(index, month_abbreviation):
+def assign_month(month_abbreviation):
     # Check if the abbreviation is 'J', 'M', or 'A' which can represent multiple months
     if month_abbreviation == 'J':
         # Assign either January or July based on what has already been assigned
@@ -40,10 +40,10 @@ def assign_month(index, month_abbreviation):
         return month_map[month_abbreviation]
 
 # Apply the month assignment logic to the DataFrame
-df['UNIQUE_MONTH'] = df.apply(lambda row: assign_month(row.name, row['MONTH']), axis=1)
+df['UNIQUE_MONTH'] = df['MONTH'].apply(assign_month)
 
-# Ensure that the month is added to the assigned_months list
+# Ensure that the month is added to the assigned_months list after assignment
 df['UNIQUE_MONTH'].apply(lambda x: assigned_months.append(x))
 
-# Show the updated DataFrame
+# Display the updated DataFrame
 import ace_tools as tools; tools.display_dataframe_to_user(name="Updated Month Data", dataframe=df)
