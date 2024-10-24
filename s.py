@@ -1,17 +1,32 @@
 import pandas as pd
 
-# Load the Excel file
+import pandas as pd
 
 
-# Rename the "Unnamed" columns properly if possible
-df.columns = [col if not col.startswith("Unnamed") else f"Unnamed_{i}" for i, col in enumerate(df.columns)]
+# Rename columns for ease of access
+df.columns = [f"Unnamed_{i}" if col.startswith("Unnamed") else col for i, col in enumerate(df.columns)]
 
-# Assuming 'Program' is correctly loaded, you can filter the columns for the ones representing months/quarters
-# Example: filter all columns that represent quantities for Q1, Q2, etc.
-quantity_columns = [col for col in df.columns if 'Q' in str(col) or '2015' in str(col)]
+# Identify the "Program" column and the Year/Quarter columns
+program_col = 'Program'
+year_quarter_columns = df.columns[3:]  # Assuming the first 3 columns are for sectioning and program
 
-# Displaying the Program and its corresponding quantities
-df_program_quantities = df[['Program'] + quantity_columns]
+# Melt the dataframe to make it easier to handle (reshape it)
+df_melted = pd.melt(df, id_vars=[program_col], value_vars=year_quarter_columns, var_name='Year_Quarter', value_name='Quantity')
 
-# View the first few rows to ensure it's correct
-df_program_quantities.head()
+# Split the 'Year_Quarter' into separate 'Year' and 'Quarter' columns
+df_melted[['Year', 'Quarter']] = df_melted['Year_Quarter'].str.extract(r'(\d+)(Q\d)')
+
+# Convert the Year and Quarter columns to appropriate datatypes
+df_melted['Year'] = df_melted['Year'].astype(int)
+df_melted['Quantity'] = df_melted['Quantity'].astype(float)
+
+# Fill in missing quarters/months by distributing the quantity evenly if not broken down
+def distribute_quantity(row):
+    if row['Quantity'] != 0 and row['Quarter']:
+        return row['Quantity'] / 3  # Divide into three months for simplicity
+    return row['Quantity']
+
+df_melted['Distributed_Quantity'] = df_melted.apply(distribute_quantity, axis=1)
+
+# View the result
+df_melted.head()
