@@ -20,7 +20,7 @@ def load_workbook_data(file_path):
             all_data.append(sheet_data)
 
     # Combine all sheet data into one DataFrame
-    return pd.concat(all_data, ignore_index=True)
+    return pd.concat(all_data, ignore_index=True) if all_data else pd.DataFrame()
 
 # Function to extract data from an individual sheet
 def extract_data_from_sheet(ws, sheet_name):
@@ -55,22 +55,29 @@ def extract_data_from_sheet(ws, sheet_name):
 
     return df
 
-# Function to handle all workbooks in a directory
+# Function to handle all workbooks in the "daily_status" directory
 def load_all_workbooks(directory_path):
     all_data = []
 
-    # Loop through all Excel files in the directory
-    for file_name in os.listdir(directory_path):
-        if file_name.endswith('.xlsx'):
-            file_path = os.path.join(directory_path, file_name)
-            workbook_data = load_workbook_data(file_path)
-            all_data.append(workbook_data)
+    # Loop through all subfolders (each month) in the daily_status folder
+    for month_folder in os.listdir(directory_path):
+        month_folder_path = os.path.join(directory_path, month_folder)
+        
+        # Ensure we're only processing folders
+        if os.path.isdir(month_folder_path):
+            # Loop through each Excel file in the month's folder
+            for file_name in os.listdir(month_folder_path):
+                if file_name.endswith('.xlsx'):
+                    file_path = os.path.join(month_folder_path, file_name)
+                    workbook_data = load_workbook_data(file_path)
+                    if not workbook_data.empty:
+                        all_data.append(workbook_data)
 
     # Combine all data from all workbooks into one DataFrame
-    return pd.concat(all_data, ignore_index=True)
+    return pd.concat(all_data, ignore_index=True) if all_data else pd.DataFrame()
 
 # Example usage
-directory = "path_to_directory_containing_excel_files"
+directory = "daily_status"  # Your folder with the daily reports
 final_data = load_all_workbooks(directory)
 
 # Display the final aggregated data
