@@ -6,63 +6,60 @@ import os
 def load_workbook_data(file_path):
     # Load the Excel workbook using openpyxl
     wb = openpyxl.load_workbook(file_path, data_only=True)
-
     all_data = []
 
     # Loop through each sheet (each day) in the workbook
     for sheet_name in wb.sheetnames:
         ws = wb[sheet_name]
-
-        # Extract relevant data for this sheet
-        sheet_data = extract_data_from_sheet(ws, sheet_name)
-
+        # Extract relevant data for this sheet using the section parser
+        sheet_data = extract_sections_and_parse(ws, sheet_name)
         if sheet_data is not None:
             all_data.append(sheet_data)
 
     # Combine all sheet data into one DataFrame
     return pd.concat(all_data, ignore_index=True) if all_data else pd.DataFrame()
 
-# Function to extract data from an individual sheet
-def extract_data_from_sheet(ws, sheet_name):
-    # Try to identify the section in the sheet, locate station headers and pull relevant rows
-    start_row = None
-    station_data = []
+# Function to extract specific sections and tables from the sheet
+def extract_sections_and_parse(ws, sheet_name):
+    sections = ["Station", "Contract", "MRP", "Actual", "Delta", "Flow"]
 
-    # Search for station headers or key identifiers (adjust based on your specific needs)
-    for row in ws.iter_rows(min_row=1, max_row=ws.max_row):
-        if any('Station' in str(cell.value) for cell in row):
-            start_row = row[0].row
-            break
-    
-    if start_row is None:
-        return None  # No station data found in this sheet
+    data_list = []
+    # Assuming stations like "Station", "Turret", "Hull", etc., are in your layout
 
-    # Extract the rows following the station header
-    for row in ws.iter_rows(min_row=start_row + 1, max_row=ws.max_row, values_only=True):
-        # Check if this row has relevant data (adjust according to your data structure)
-        if any(row):
-            station_data.append(row)
-        else:
-            break  # Stop at the first empty row
+    # Parse sections using key phrases from your station identifiers
+    for section_name in sections:
+        start_row = None
+        for row in ws.iter_rows(min_row=1, max_row=ws.max_row):
+            if any(section_name in str(cell.value) for cell in row):
+                start_row = row[0].row
+                break
 
-    # Convert the extracted data into a DataFrame
-    columns = ['Contract', 'MRP', 'Actual', 'Delta', 'Flow', 'Station', 'Date']
-    df = pd.DataFrame(station_data, columns=columns[:len(station_data[0])])
+        if start_row is not None:
+            # Extract data from the section starting at `start_row`
+            section_data = []
+            for row in ws.iter_rows(min_row=start_row + 1, max_row=ws.max_row, values_only=True):
+                if any(row):
+                    section_data.append(row)
+                else:
+                    break  # Stop on the first empty row
+            
+            # Create a DataFrame for the section
+            df = pd.DataFrame(section_data, columns=['Contract', 'MRP', 'Actual', 'Delta', 'Flow'])
+            df['Station'] = section_name
+            df['Date'] = sheet_name.split()[0]  # Adjust date extraction based on sheet name
+            data_list.append(df)
 
-    # Add the station name (from sheet name) and date (extracted from the workbook structure)
-    df['Station'] = sheet_name
-    df['Date'] = sheet_name.split()[0]  # Adjust this based on how the date is stored in the sheet name
+    # Combine all section data
+    return pd.concat(data_list, ignore_index=True) if data_list else None
 
-    return df
-
-# Function to handle all workbooks in the "daily_status" directory
+# Function to handle all workbooks in the "DailyStatusFolder"
 def load_all_workbooks(directory_path):
     all_data = []
 
-    # Loop through all subfolders (each month) in the daily_status folder
+    # Loop through all subfolders (each month) in the DailyStatusFolder
     for month_folder in os.listdir(directory_path):
         month_folder_path = os.path.join(directory_path, month_folder)
-        
+
         # Ensure we're only processing folders
         if os.path.isdir(month_folder_path):
             # Loop through each Excel file in the month's folder
@@ -77,7 +74,7 @@ def load_all_workbooks(directory_path):
     return pd.concat(all_data, ignore_index=True) if all_data else pd.DataFrame()
 
 # Example usage
-directory = "daily_status"  # Your folder with the daily reports
+directory = "DailyStatusFolder"  # Your folder with the daily reports
 final_data = load_all_workbooks(directory)
 
 # Display the final aggregated data
